@@ -47,11 +47,15 @@ def fetch_all_candidate_news():
 
 # 3. Gemini 필터링 및 요약 함수
 def get_curated_summary(news_list):
+    # 1. 고유 ID와 함께 매핑 데이터 생성
+    id_map = {}
     all_candidates_text = ""
     for cat in ["KR", "US", "Global"]:
         all_candidates_text += f"\n[{cat} 뉴스 후보]\n"
         for i, item in enumerate(news_list[cat]):
-            all_candidates_text += f"ID: {cat}_{i}\n제목: {item['title']}\nURL: {item['url']}\n\n"
+            news_id = f"{cat}_{i}"
+            id_map[news_id] = item
+            all_candidates_text += f"ID: {news_id}\n제목: {item['title']}\n\n"
 
     prompt = f"""
     당신은 글로벌 경제 전문 애널리스트입니다. 아래 제공된 기사 후보들 중에서 
@@ -77,6 +81,7 @@ def get_curated_summary(news_list):
     14. 반드시 제공된 원본 URL을 사용하도록 합니다.
     15. 각 뉴스 후보는 ID로 구분되어 있으며, 제목과 URL이 한 쌍입니다.
     16. 선정된 뉴스의 요약을 작성할 때, 해당 ID에 귀속된 원본 URL을 절대로 변경하거나 다른 제목과 섞지 마세요.
+    결과에는 반드시 선정한 뉴스의 'ID'를 'selected_id' 필드에 담아 반환하세요.
 
     [출력 형식]
     반드시 JSON 스키마 형식을 준수하세요.
@@ -85,7 +90,7 @@ def get_curated_summary(news_list):
         "category": "KR | US | Global",
         "keyword": "이슈를 직관적으로 설명하는 문장",
         "summary": "- 요약 내용 1\\n- 요약 내용 2\\n- 시장 전망/시사점",
-        "links": [{{ "title": "선택한 후보의 원본 제목", "url": "선택한 후보의 정확한 ID 대응 URL" }}]
+        "selected_id": "선정한 뉴스의 ID (예: KR_0)"
       }}
     ]
     """
@@ -96,7 +101,21 @@ def get_curated_summary(news_list):
         config={'response_mime_type': 'application/json'}
     )
     
-    return json.loads(response.text)
+    raw_results = json.loads(response.text)
+    
+    # 2. ID를 기반으로 원본 URL 매칭 (파이썬에서 수행)
+    final_results = []
+    for res in raw_results:
+        news_id = res.get("selected_id")
+        original_news = id_map.get(news_id)
+        
+        if original_news:
+            res["links"] = [{"title": original_news["title"], "url": original_news["url"]}]
+            # selected_id는 DB 저장 시 필요 없으므로 삭제 가능
+            del res["selected_id"]
+            final_results.append(res)
+            
+    return final_results
 
 # 4. 실행 로직
 def main():
