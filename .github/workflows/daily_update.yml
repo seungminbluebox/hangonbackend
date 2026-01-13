@@ -15,9 +15,9 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/status-setup-python@v4
+      - uses: actions/setup-python@v5 # 정확한 공식 액션 이름
         with:
-          python-version: "3.9"
+          python-version: "3.11" # 가급적 최신 버전을 권장함
 
       - name: Install dependencies
         run: |
