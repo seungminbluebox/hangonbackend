@@ -68,6 +68,7 @@ def get_curated_summary(news_list):
     
     [선정 기준]
     1. 뉴스가 시장에 미치는 영향력이 큰가?
+    2. 전망, 예측보단 현재 상황을 명확히 설명하는 뉴스인가?
     3. 지수, 환율, 금리, 중요한 정책 위주의 뉴스인가?
     4. 국가 정책, 금리, 환율등 과 같은 주요 이슈인가?
     5. 글로벌 빅테크나 주요 산업의 판도를 바꿀 만한 사건인가?
@@ -105,7 +106,6 @@ def get_curated_summary(news_list):
       }}
     ]
     """
-    print(all_candidates_text)
 
     response = client.models.generate_content(
         model="gemini-2.0-flash", # 속도와 성능이 균형 잡힌 모델
