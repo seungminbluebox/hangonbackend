@@ -19,7 +19,6 @@ def fetch_all_candidate_news():
 
     # A. 한국 (구글 뉴스 - 경제 키워드)
     try:
-        # 더 정확한 경제 뉴스 수집을 위해 키워드 보강
         kr_feed = feedparser.parse("https://news.google.com/rss/search?q=%EA%B2%BD%EC%A0%9C+%EA%B8%88%EB%A6%AC+%EC%8B%9C%EC%9E%A5+when:1d&hl=ko&gl=KR&ceid=KR:ko")
         for entry in kr_feed.entries[:15]:
             candidates["KR"].append({"title": entry.title, "url": entry.link})
@@ -36,7 +35,7 @@ def fetch_all_candidate_news():
 
     # C. 글로벌 (구글 뉴스 World Economy)
     try:
-        global_feed = feedparser.parse("https://news.google.com/rss/search?q=World+Economy+Outlook+when:1d&hl=ko&gl=KR&ceid=KR:ko")
+        global_feed = feedparser.parse("https://news.google.com/rss/search?q=world+economy+when:1d&hl=ko&gl=KR&ceid=KR:ko")
         for entry in global_feed.entries[:15]:
             candidates["Global"].append({"title": entry.title, "url": entry.link})
     except Exception as e:
@@ -47,43 +46,53 @@ def fetch_all_candidate_news():
 
 # 3. Gemini 필터링 및 요약 함수
 def get_curated_summary(news_list):
-    # 1. 고유 ID와 함께 매핑 데이터 생성
     id_map = {}
     all_candidates_text = ""
+
+    # [변경 사항] 모든 카테고리의 후보를 하나의 리스트로 통합하여 ID 부여
+    global_index = 0
     for cat in ["KR", "US", "Global"]:
-        all_candidates_text += f"\n[{cat} 뉴스 후보]\n"
-        for i, item in enumerate(news_list[cat]):
-            news_id = f"{cat}_{i}"
+        for item in news_list[cat]:
+            news_id = f"NEWS_{global_index}"
             id_map[news_id] = item
+            # 출처 정보는 주지 않고 제목만 제공하여 내용에 집중하게 함
             all_candidates_text += f"ID: {news_id}\n제목: {item['title']}\n\n"
+            global_index += 1
 
     prompt = f"""
-    당신은 글로벌 경제 전문 애널리스트입니다. 아래 제공된 기사 후보들 중에서 
-    반드시 [한국 2개, 미국 2개, 글로벌 1개]의 비율을 지켜 총 5개의 핵심 뉴스를 선정하고 요약하세요.
+    당신은 글로벌 경제 전문 애널리스트입니다. 아래 제공된 {global_index}개의 기사 후보들을 분석하여 
+    오늘의 핵심 뉴스 5개를 선정하고 요약하세요.
 
     [뉴스 후보 목록]
     {all_candidates_text}
     
     [선정 기준]
     1. 뉴스가 시장에 미치는 영향력이 큰가?
-    2. 투자자들이 반드시 알아야 할 핵심 정보인가(ex 금리 변동, 정책 발표, 환율 변동 등)?
-    3. 단기적 이슈가 아닌 중장기적 관점에서 중요한가?
-    4. 국가 정책, 금리, 환율에 직접적인 영향을 주는가?
+    3. 지수, 환율, 금리, 중요한 정책 위주의 뉴스인가?
+    4. 국가 정책, 금리, 환율등 과 같은 주요 이슈인가?
     5. 글로벌 빅테크나 주요 산업의 판도를 바꿀 만한 사건인가?
-    6. 중복되는 내용 없이 다양한 이슈를 다루고 있는가?
     7. 신뢰할 수 있는 출처에서 나온 뉴스인가?
     8. 결과물은 반드시 한국 2개, 미국 2개, 글로벌 1개여야 합니다.
     9. 기자의 의견이 아닌 객관적 사실에 기반한 뉴스여야 합니다.
     10. 모든 요약은 한국어로 작성하세요.
     11. 총 5개를 선정: 한국 2개, 미국 2개, 글로벌 1개 필수.
-    12. 뉴스 선정 기준: 중장기적 시장 영향력, 투자 인사이트가 풍부한 뉴스.
     13. 요약 스타일: '~함', '~음'으로 끝나는 개조식 요약 (3개 포인트).
-    14. 반드시 제공된 원본 URL을 사용하도록 합니다.
-    15. 각 뉴스 후보는 ID로 구분되어 있으며, 제목과 URL이 한 쌍입니다.
     16. 선정된 뉴스의 요약을 작성할 때, 해당 ID에 귀속된 원본 URL을 절대로 변경하거나 다른 제목과 섞지 마세요.
-    17. 각 뉴스의 keyword에 마지막에 keyword에 맞는 이모지 사용
+    17. 각 뉴스의 keyword에 마지막에 keyword에 맞는 이모지 사용(감정 이모지는 금지)
     18. 비슷한 주제는 피하고 다양한 이슈 선정
     결과에는 반드시 선정한 뉴스의 'ID'를 'selected_id' 필드에 담아 반환하세요.
+    
+    [카테고리 분류 및 선정 기준 (매우 중요)]
+    1. 출처 언어와 상관없이 기사의 '핵심 주제'를 기준으로 카테고리를 다시 분류하세요.
+       - KR: 대한민국 경제, 정책, 기업, 국내 시장 이슈
+       - US: 미국 경제(Fed, 금리), 월스트리트, 미국 빅테크 기업 이슈
+       - Global: 글로벌 매크로 트렌드, 국제기구(IMF, OECD), 중동/유럽 등 다국적 영향력 이슈
+        [작성 가이드]
+    - 모든 요약은 한국어로 작성하세요.
+    - 요약 스타일: '~함', '~음'으로 끝나는 개조식 요약 (3개 포인트).
+    - keyword: 이슈를 직관적으로 설명하는 문장 (추상적인 제목 대신 구체적인 사건 내용을 명시).
+    - summary: 시장 전망/시사점 섹션에서도 실제 분석 내용을 구체적으로 작성.
+    - 이모지: keyword 마지막에 주제와 어울리는 이모지 사용 (감정 이모지 제외).
 
     [출력 형식]
     반드시 JSON 스키마 형식을 준수하세요.
@@ -96,6 +105,7 @@ def get_curated_summary(news_list):
       }}
     ]
     """
+    print(all_candidates_text)
 
     response = client.models.generate_content(
         model="gemini-2.0-flash", # 속도와 성능이 균형 잡힌 모델
