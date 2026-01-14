@@ -1,150 +1,213 @@
-import feedparser
-from google import genai
-from supabase import create_client, Client
-import json
 import os
+import json
+import requests
+import feedparser
+from bs4 import BeautifulSoup
+from datetime import datetime
+import google.generativeai as genai
+from supabase import create_client, Client
 from dotenv import load_dotenv
+from newspaper import Article, Config
 
-# 1. 환경 변수 및 클라이언트 설정
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY)
+genai.configure(api_key=GOOGLE_API_KEY)
+MODEL_NAME = 'gemini-2.0-flash' 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 2. 뉴스 수집 함수 (구글 뉴스 RSS 통일)
-def fetch_all_candidate_news():
-    candidates = {"KR": [], "US": [], "Global": []}
+# --- [모듈 1] 데이터 수집 (Collector) ---
 
-    # A. 한국 (구글 뉴스 - 경제 키워드)
-    try:
-        kr_feed = feedparser.parse("https://news.google.com/rss/search?q=%EA%B2%BD%EC%A0%9C+%EA%B8%88%EB%A6%AC+%EC%8B%9C%EC%9E%A5+when:1d&hl=ko&gl=KR&ceid=KR:ko")
-        for entry in kr_feed.entries[:15]:
-            candidates["KR"].append({"title": entry.title, "url": entry.link})
-    except Exception as e:
-        print(f"한국 뉴스 수집 에러: {e}")
-
-    # B. 미국 (구글 뉴스 US Business)
-    try:
-        us_feed = feedparser.parse("https://news.google.com/rss/search?q=business+finance+stock+market+when:1d&hl=en-US&gl=US&ceid=US:en")
-        for entry in us_feed.entries[:15]:
-            candidates["US"].append({"title": entry.title, "url": entry.link})
-    except Exception as e:
-        print(f"미국 뉴스 수집 에러: {e}")
-
-    # C. 글로벌 (구글 뉴스 World Economy)
-    try:
-        global_feed = feedparser.parse("https://news.google.com/rss/search?q=world+economy+when:1d&hl=ko&gl=KR&ceid=KR:ko")
-        for entry in global_feed.entries[:15]:
-            candidates["Global"].append({"title": entry.title, "url": entry.link})
-    except Exception as e:
-        print(f"글로벌 뉴스 수집 에러: {e}")
-
-    return candidates
-
-
-# 3. Gemini 필터링 및 요약 함수
-def get_curated_summary(news_list):
-    id_map = {}
-    all_candidates_text = ""
-
-    # [변경 사항] 모든 카테고리의 후보를 하나의 리스트로 통합하여 ID 부여
-    global_index = 0
-    for cat in ["KR", "US", "Global"]:
-        for item in news_list[cat]:
-            news_id = f"NEWS_{global_index}"
-            id_map[news_id] = item
-            # 출처 정보는 주지 않고 제목만 제공하여 내용에 집중하게 함
-            all_candidates_text += f"ID: {news_id}\n제목: {item['title']}\n\n"
-            global_index += 1
-
-    prompt = f"""
-    당신은 글로벌 경제 전문 애널리스트입니다. 아래 제공된 {global_index}개의 기사 후보들을 분석하여 
-    오늘의 핵심 뉴스 5개를 선정하고 요약하세요.
-
-    [뉴스 후보 목록]
-    {all_candidates_text}
+def fetch_naver_finance_main():
+    print("Fetching Naver Finance Main News...")
+    url = "https://finance.naver.com/news/mainnews.naver"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
     
+    try:
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        news_items = []
+        articles = soup.select(".mainNewsList li")
+        
+        for article in articles[:100]:  # 상위 100개만
+            # 제목 추출
+            title_tag = article.select_one("dd.articleSubject a")
+            if not title_tag: # 썸네일 구조일 경우 dt 태그일 수 있음
+                title_tag = article.select_one("dt.articleSubject a")
+            
+            # 요약(Snippet) 추출
+            summary_tag = article.select_one("dd.articleSummary")
+            
+            if title_tag and summary_tag:
+                title = title_tag.text.strip()
+                link = "https://finance.naver.com" + title_tag['href']
+                snippet = summary_tag.text.strip().replace("\n", " ")[:150] # 앞 150자만
+                
+                news_items.append({
+                    "title": title,
+                    "snippet": snippet,
+                    "url": link
+                })
+                
+        return news_items
+    except Exception as e:
+        print(f"Error fetching Naver: {e}")
+        return []
+
+def fetch_yahoo_finance_stable():
+    print("Fetching Yahoo Finance Top Stories with newspaper3k...")
+    rss_url = "https://finance.yahoo.com/news/rss/topstories"
+    
+    # 봇 탐지 우회를 위한 설정
+    user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36'
+    config = Config()
+    config.browser_user_agent = user_agent
+    config.request_timeout = 10
+
+    try:
+        feed = feedparser.parse(rss_url)
+        news_items = []
+        
+        # 속도 및 차단 방지를 위해 상위 30개만 테스트
+        for entry in feed.entries[:25]: 
+            try:
+                # 1. URL 확보
+                url = entry.link
+                
+                # 2. Article 객체 생성 및 다운로드 (newspaper3k가 알아서 처리)
+                article = Article(url, config=config)
+                article.download() # HTML 다운로드
+                article.parse()    # 본문 추출 알고리즘 가동
+                
+                # 3. 데이터 정제 (nlp()를 호출하면 키워드/요약도 자동 추출 가능하지만 여기선 생략)
+                full_text = article.text
+                
+                # 본문이 비어있으면 RSS의 summary로 대체
+                if not full_text:
+                     full_text = entry.get('summary', entry.get('description', ''))
+
+                news_items.append({
+                    "title": article.title if article.title else entry.title,
+                    "content": full_text, # 전체 본문
+                    "summary": full_text[:200] + "..." if len(full_text) > 200 else full_text,
+                    "url": url
+                })
+                print(f"Success: {entry.title[:15]}...")
+                
+            except Exception as e:
+                print(f"Failed to parse {entry.link}: {e}")
+                # 실패 시 RSS 기본 정보만 저장
+                news_items.append({
+                    "title": entry.title,
+                    "content": entry.get('summary', ''),
+                    "url": entry.link
+                })
+
+        return news_items
+
+    except Exception as e:
+        print(f"RSS Load Error: {e}")
+        return []
+
+def process_news_with_gemini(raw_news_list):
+    """수집된 뉴스 리스트를 Gemini에게 보내 중요 뉴스 5개 선별"""
+    print("Processing with Gemini AI...")
+    
+    if not raw_news_list:
+        print("No news to process.")
+        return []
+
+    model = genai.GenerativeModel(MODEL_NAME)
+    
+    prompt = f"""
+    너는 전문 경제 애널리스트야. 아래 제공된 [뉴스 데이터]는 한국과 세계의 주요 경제 뉴스들이야.
+    하루에 한번 5가지의 소식만 골라서 보여줘야 하니, 이 중에서 가장 '경제적 파급력(굵직한 소식)'이 크고 중요한 사건 5가지를 선별해줘. 
+
+    [요구사항]
+    1. 다양성: 한국(KR)/미국(US)/글로벌(Global) 이슈를 적절히 섞어서 총 5개를 맞춰줘. 
+    2. 재가공:
+       - `keyword`: 자극적이지 않고 사실에 기반한 명확한 헤드라인으로 새로 작성해.
+       - `summary`: `- 요약 내용 1\\n- 요약 내용 2\\n- 시장 전망/시사점(~할 전망임이 아닌 그저 가능성이 있을수도있다는 식의 서술)` 
+       - `links`: 선별된 뉴스의 원본 URL과 제목을 반드시 아래 예시와 같은 객체 배열 형식으로 포함해.
+    3. 출력 형식: 반드시 아래 JSON 포맷(Array of Objects)으로만 출력해. Markdown 코드 블럭(```json)을 쓰지 마.
+    4. 각 뉴스의 `keyword`에 마지막에 keyword에 맞는 이모지 사용(감정 이모지는 금지)
+    5. summary 요약 작성시 최대한 단어로 문장을 끝맺음, 한 줄마다 50자 정도로 작성할 것.
+    6. 기업에 대한 뉴스가 나올경우 category는 해당 기업의 소속 국가로 맞출것.
+    7. 원자제, 암호화폐 뉴스의 category는 Global임.
+
+
     [선정 기준]
     1. 뉴스가 시장에 미치는 영향력이 큰가?
     2. 전망, 예측보단 현재 상황을 명확히 설명하는 뉴스인가?
     3. 지수, 환율, 금리, 중요한 정책 위주의 뉴스인가?
     4. 국가 정책, 금리, 환율등 과 같은 주요 이슈인가?
     5. 글로벌 빅테크나 주요 산업의 판도를 바꿀 만한 사건인가?
-    7. 신뢰할 수 있는 출처에서 나온 뉴스인가?
-    8. 결과물은 반드시 한국 2개, 미국 2개, 글로벌 1개여야 합니다.
-    9. 기자의 의견이 아닌 객관적 사실에 기반한 뉴스여야 합니다.
-    10. 모든 요약은 한국어로 작성하세요.
-    11. 총 5개를 선정: 한국 2개, 미국 2개, 글로벌 1개 필수.
-    13. 요약 스타일: '~함', '~음'으로 끝나는 개조식 요약 (3개 포인트).
-    16. 선정된 뉴스의 요약을 작성할 때, 해당 ID에 귀속된 원본 URL을 절대로 변경하거나 다른 제목과 섞지 마세요.
-    17. 각 뉴스의 keyword에 마지막에 keyword에 맞는 이모지 사용(감정 이모지는 금지)
-    18. 비슷한 주제는 피하고 다양한 이슈 선정
-    결과에는 반드시 선정한 뉴스의 'ID'를 'selected_id' 필드에 담아 반환하세요.
+    6. 누군가(어느집단, 단체)의 의견, 예측이 아닌 현재의 객관적 사실에 기반한 뉴스인가?
+    7. 겹치는 주제는 중복 선정을 피하고 다양한 이슈를 선정하는가?
     
-    [카테고리 분류 및 선정 기준 (매우 중요)]
-    1. 출처 언어와 상관없이 기사의 '핵심 주제'를 기준으로 카테고리를 다시 분류하세요.
-       - KR: 대한민국 경제, 정책, 기업, 국내 시장 이슈
-       - US: 미국 경제(Fed, 금리), 월스트리트, 미국 빅테크 기업 이슈
-       - Global: 글로벌 매크로 트렌드, 국제기구(IMF, OECD), 중동/유럽 등 다국적 영향력 이슈
-        [작성 가이드]
-    - 모든 요약은 한국어로 작성하세요.
-    - 요약 스타일: '~함', '~음'으로 끝나는 개조식 요약 (3개 포인트).
-    - keyword: 이슈를 직관적으로 설명하는 문장 (추상적인 제목 대신 구체적인 사건 내용을 명시).
-    - summary: 시장 전망/시사점 섹션에서도 실제 분석 내용을 구체적으로 작성.
-    - 이모지: keyword 마지막에 주제와 어울리는 이모지 사용 (감정 이모지 제외).
-
-    [출력 형식]
-    반드시 JSON 스키마 형식을 준수하세요.
+    [JSON 예시]
     [
       {{
-        "category": "KR | US | Global",
-        "keyword": "이슈를 직관적으로 설명하는 문장",
-        "summary": "- 요약 내용 1\\n- 요약 내용 2\\n- 시장 전망/시사점",
-        "selected_id": "선정한 뉴스의 ID (예: KR_0)"
+        "category": "KR"(keyword, summary 내용에 맞게 분류) global은 미국이 아닌 나라의 뉴스임,
+        "keyword": "삼성전자 어닝쇼크, 반도체 부진 심화", 
+        "summary": "-삼성전자가 3분기 영업이익이 전년 대비 대폭 감소했다고 발표.\n-반도체 수요 둔화가 주요 원인.\n-글로벌 경기 침체 우려와 맞물려 IT 업계 전반에 부정적 영향을 미칠 여지가 존재.", 
+        "links": [
+          {{
+            "url": "https://news.naver.com/...",
+            "title": "삼성전자, 3분기 영업이익 2.4조원... 시장 예상치 하회"
+          }}
+        ]
       }}
     ]
+
+    [뉴스 데이터]
+    {json.dumps(raw_news_list, ensure_ascii=False)}
     """
-
-    response = client.models.generate_content(
-        model="gemini-2.0-flash", # 속도와 성능이 균형 잡힌 모델
-        contents=prompt,
-        config={'response_mime_type': 'application/json'}
-    )
     
-    raw_results = json.loads(response.text)
-    
-    # 2. ID를 기반으로 원본 URL 매칭 (파이썬에서 수행)
-    final_results = []
-    for res in raw_results:
-        news_id = res.get("selected_id")
-        original_news = id_map.get(news_id)
-        
-        if original_news:
-            res["links"] = [{"title": original_news["title"], "url": original_news["url"]}]
-            # selected_id는 DB 저장 시 필요 없으므로 삭제 가능
-            del res["selected_id"]
-            final_results.append(res)
-            
-    return final_results
-
-# 4. 실행 로직
-def main():
-    print("🚀 뉴스 수집 시작...")
-    candidates = fetch_all_candidate_news()
-    if not candidates:
-        print("❌ 수집된 뉴스가 없습니다.")
-        return
-    print(f"🧐 {len(candidates)}개의 후보 중 5개 선별 및 요약 중...")
     try:
-        final_news = get_curated_summary(candidates)
-        # 5. Supabase 저장
-        for item in final_news:
-            supabase.table("daily_news").insert(item).execute()
+        response = model.generate_content(
+            prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        response_text = response.text
         
-        print("✅ 성공적으로 DB에 저장되었습니다.")
+        return json.loads(response_text, strict=False)
     except Exception as e:
-        print(f"❌ 요약 및 저장 중 오류 발생: {e}")
+        print(f"Error in Gemini processing: {e}")
+        return []
 
-main()
+def save_to_supabase(data):
+    print(f"Saving {len(data)} items to Supabase...")
+    if not data:
+        print("No data to save.")
+        return
+    try:
+        result = supabase.table("daily_news").insert(data).execute()
+        print("Successfully saved!")
+        return result
+    except Exception as e:
+        print(f"Error saving to Supabase: {e}")
+
+def main():
+    kr_news = fetch_naver_finance_main()
+    us_news = fetch_yahoo_finance_stable()
+    
+    all_news = kr_news + us_news
+    print(f"Total collected raw news: {len(all_news)} items")
+    
+    final_news = process_news_with_gemini(all_news)
+    
+    if final_news:
+        print("Top 5 News Selected:")
+        for idx, item in enumerate(final_news):
+            print(f"{idx+1}. [{item['category']}] {item['keyword']}")
+        save_to_supabase(final_news)
+    else:
+        print("Failed to generate news summary.")
+
+if __name__ == "__main__":
+    main()
