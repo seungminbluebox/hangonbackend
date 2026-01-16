@@ -2,8 +2,7 @@ name: Daily News Update
 
 on:
   schedule:
-    # 매일 한국 시간 오전 9시 (UTC 00:00)에 실행
-    - cron: "0 0 * * *"
+    - cron: "27 23 * * *"
   workflow_dispatch: # 수동 실행 버튼 활성화
 
 jobs:
