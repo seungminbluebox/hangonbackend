@@ -1,6 +1,11 @@
 name: Market Data Update
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/update_market.py"
   schedule:
     - cron: "*/5 * * * *" # 5분마다 실행
   workflow_dispatch: # 수동 실행 버튼 활성화
