@@ -21,9 +21,8 @@ jobs:
 
       - name: Update News & Fear-Greed
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          python app.py          # 뉴스 요약 업데이트 (선택 사항)
           python update_fng_ai.py # 공탐지수 AI 분석 업데이트
