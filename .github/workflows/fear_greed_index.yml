@@ -1,0 +1,29 @@
+name: Daily Market Update
+
+on:
+  schedule:
+    - cron: "0 23 * * *" # UTC 기준 23:00 (한국 시간 오전 8:00)
+  workflow_dispatch: # 수동 실행 버튼 추가
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install fear-and-greed # 필요한 패키지 추가
+
+      - name: Update News & Fear-Greed
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python update_fng_ai.py # 공탐지수 AI 분석 업데이트
