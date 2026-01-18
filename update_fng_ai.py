@@ -51,7 +51,7 @@ def analyze_sentiment(fng_data):
 
     [JSON 형식]
     {{
-        "title": "오늘의 시장 분위기 (한 줄 요약)",
+        "title": "오늘의 시장 분위기를 한 문장으로 요약한 제목",
         "analysis": "핵심 요약 내용 (문장별로 줄바꿈 적용)",
         "advice": ["조언1", "조언2", "조언3"]
     }}
