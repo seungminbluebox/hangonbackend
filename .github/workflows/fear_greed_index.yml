@@ -1,4 +1,4 @@
-name: Daily Market Update
+name: fear_greed_index_update
 
 on:
   schedule:
@@ -17,7 +17,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r backend/requirements.txt
+          pip install -r requirements.txt
           pip install fear-and-greed # 필요한 패키지 추가
 
       - name: Update News & Fear-Greed
