@@ -26,3 +26,4 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           python update_fng_ai.py # 공탐지수 AI 분석 업데이트
+          python update_kospi_fng.py # 코스피 공탐지수 지수 업데이트
