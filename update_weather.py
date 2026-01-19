@@ -87,7 +87,7 @@ def analyze_weather(market_data):
     [JSON 형식]
     {{
         "weather": "맑음 | 구름조금 | 흐림 | 비 | 태풍",
-        "temperature": "00도",
+        "temperature": "00C",
         "title": "기상 특보 한줄 요약",
         "briefing": "전체적인 시장 날씨 설명",
         "details": [
