@@ -1,4 +1,4 @@
-name: moneyFlow, stock_weather_update
+name: other updates
 
 on:
   schedule:
@@ -38,3 +38,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python moneyFlow.py
+      - name: Run Currency Desk Update
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python currencyDesk.py

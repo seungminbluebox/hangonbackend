@@ -138,6 +138,8 @@ def process_news_with_gemini(raw_news_list):
     5. summary 요약 작성시 최대한 단어로 문장을 끝맺음, 한 줄마다 50자 정도로 작성할 것.
     6. 기업에 대한 뉴스가 나올경우 category는 해당 기업의 소속 국가로 맞출것.
     7. 원자제, 암호화폐 뉴스의 category는 Global임.
+    8. 특수문자 **같은 물결표는 사용 금지**입니다. 텍스트만 작성해 주세요.
+
 
 
     [선정 기준]
