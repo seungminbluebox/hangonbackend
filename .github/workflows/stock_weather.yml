@@ -1,4 +1,4 @@
-name: Update Hangon Data
+name: moneyFlow, stock_weather_update
 
 on:
   schedule:
@@ -30,11 +30,11 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python update_weather.py
+        run: python stockWeather.py
 
       - name: Run Money Flow Update
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python update_money_flow.py
+        run: python moneyFlow.py
