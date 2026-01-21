@@ -12,6 +12,7 @@ load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
 
 client = genai.Client(api_key=GOOGLE_API_KEY)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -84,7 +85,7 @@ def analyze_currency(currency_data):
     """
     
     response = client.models.generate_content(
-        model='gemini-2.0-flash',
+        model=MODEL_NAME,
         contents=prompt
     )
     return response.text.strip()

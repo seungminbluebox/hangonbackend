@@ -10,12 +10,13 @@ import pandas as pd
 load_dotenv()
 
 # 환경 변수 설정
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeModel(MODEL_NAME)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 분석할 티커 정의

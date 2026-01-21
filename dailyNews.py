@@ -10,11 +10,11 @@ from dotenv import load_dotenv
 from newspaper import Article, Config
 
 load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
-MODEL_NAME = 'gemini-2.0-flash' 
+MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- [모듈 1] 데이터 수집 (Collector) ---
@@ -33,7 +33,7 @@ def fetch_naver_finance_main():
         news_items = []
         articles = soup.select(".mainNewsList li")
         
-        for article in articles[:100]:  # 상위 100개만
+        for article in articles[:100]:  # 상위 20개로 축소
             # 제목 추출
             title_tag = article.select_one("dd.articleSubject a")
             if not title_tag: # 썸네일 구조일 경우 dt 태그일 수 있음
@@ -72,8 +72,8 @@ def fetch_yahoo_finance_stable():
         feed = feedparser.parse(rss_url)
         news_items = []
         
-        # 속도 및 차단 방지를 위해 상위 30개만 테스트
-        for entry in feed.entries[:25]: 
+        # 상위 10개만 수집 (토큰 절약)
+        for entry in feed.entries[:30]: 
             try:
                 # 1. URL 확보
                 url = entry.link
@@ -92,8 +92,7 @@ def fetch_yahoo_finance_stable():
 
                 news_items.append({
                     "title": article.title if article.title else entry.title,
-                    "content": full_text, # 전체 본문
-                    "summary": full_text[:200] + "..." if len(full_text) > 200 else full_text,
+                    "summary": full_text[:300] + "..." if len(full_text) > 300 else full_text, # 전체 본문 대신 요약만 전송하도록 수정
                     "url": url
                 })
                 print(f"Success: {entry.title[:15]}...")
