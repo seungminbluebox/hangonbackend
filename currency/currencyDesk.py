@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import yfinance as yf
 from google import genai
 from supabase import create_client, Client
