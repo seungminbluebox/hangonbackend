@@ -21,10 +21,9 @@ jobs:
 
       - name: Update News & Fear-Greed
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          GEMINI_MODEL_NAME: ${{ vars.GEMINI_MODEL_NAME }}
         run: |
           python fearAndGreed.py # 공탐지수 AI 분석 업데이트
           python K-FearAndGreed.py # 코스피 공탐지수 지수 업데이트

@@ -8,13 +8,14 @@ import google.generativeai as genai
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from newspaper import Article, Config
+from config import GEMINI_MODEL_NAME
 
 load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") 
+GOOGLE_API_KEY =  os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
-MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+MODEL_NAME = GEMINI_MODEL_NAME
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- [모듈 1] 데이터 수집 (Collector) ---

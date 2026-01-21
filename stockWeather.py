@@ -5,14 +5,15 @@ import google.generativeai as genai
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from datetime import datetime
+from config import GEMINI_MODEL_NAME
 
 load_dotenv()
 
 # 환경 변수 설정
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") 
+GOOGLE_API_KEY =  os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+MODEL_NAME = GEMINI_MODEL_NAME
 
 genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel(MODEL_NAME)
