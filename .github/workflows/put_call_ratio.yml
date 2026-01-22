@@ -1,0 +1,31 @@
+name: put Call Ratio Data
+
+on:
+  schedule:
+    - cron: "13 04 * * *"
+  workflow_dispatch: # 수동 실행 버튼 활성화
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # [추가해야 할 부분] 의존성 설치 단계
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run pcrTracker.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python put-call-ratio/pcrTracker.py

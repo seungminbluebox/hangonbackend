@@ -102,71 +102,52 @@ def analyze_pcr_sentiment(history_df):
     if history_df.empty:
         return None
     
-    # 최신 데이터 (전날 기준)
+    # 최신 데이터
     latest = history_df.iloc[-1]
-    prev = history_df.iloc[-2] if len(history_df) > 1 else latest
     
-    # 15일간의 요약 데이터 준비
+    # 최근 15일간의 데이터 준비
     recent_15 = history_df.tail(15).to_dict(orient='records')
     
-    print("🤖 AI에게 시장 심리 분석 요청 중 (최근 15일 데이터)...")
+    print("Analyzing PCR Sentiment with AI...")
     
     prompt = f"""
-    당신은 옵션 시장의 흐름을 통해 증시 심리를 분석하는 전문 전략가입니다.
-    CBOE의 Put/Call Ratio(PCR) 데이터를 바탕으로 현재 시장의 공포와 탐욕 지수를 분석해 주세요.
+    당신은 옵션 시장의 흐름을 분석하는 수석 전략가입니다. 
+    다음 CBOE Put/Call Ratio 데이터를 바탕으로 현재 시장 심리를 분석해 주세요.
     
-    최근 15일간의 데이터:
-    {json.dumps(recent_15, indent=2)}
+    데이터:
+    {json.dumps(recent_15, indent=2, ensure_ascii=False)}
     
     분석 기준:
-    1. Total PCR이 1.0보다 높으면 '공포/바닥권', 0.7보다 낮으면 '과열/고점권'으로 해석합니다.
-    2. 전날({prev['date']}) 대비 오늘({latest['date']})의 변화가 어떤 의미를 갖는지 설명하세요.
-    3. 최근 15일간의 흐름(추세)이 상승 중인지, 하락 중인지, 아니면 횡보 중인지 분석하세요.
-    4. 분석은 철저히 객관적이고 차분한 보고서 문체로 작성하세요. (느낌표 금지)
-    5. 현재 시장 상황에 대한 요약과 투자자에게 유용한 인사이트를 포함하세요.
-    
-    결과는 반드시 아래 JSON 형식으로 반환하세요:
+    1. Total PCR이 1.0보다 높으면 '공포/바닥권', 0.7보다 낮으면 '과열/고점권'으로 해석.
+    2. 최근 15일간의 흐름이 상승(공포 심화)인지 하락(탐욕 심화)인지 분석.
+    3. 전반적인 시장 심리와 향후 대응 전략을 요약하세요.
+    4. 느낌표, 물결표같은 감정표현 금지 높은사람한테 보고하는 차분한 말투로 작성.
+    5. ~해라라는 단언적인 조언보단, 사용자가 네 의견만 맹신하여 따라하지 않도록 문장을 작성
+    6. 특수문자 **같은 물결표는 사용 금지**입니다. 텍스트만 작성해 주세요.
+
+    결과는 반드시 아래 JSON 형식으로만 출력하세요:
     {{
-      "title": "현재의 시장 심리를 요약하는 제목 (이모지 포함)",
-      "summary": "핵심 요약 한 문장",
-      "analysis": "오늘의 지표 분석과 최근 15일간의 추세 분석 (3~4문장 정도)",
-      "recommendation": ["투자자가 참고해야 할 포인트 1", "포인트 2", "포인트 3"]
+      "title": "오늘의 시장 심리를 요약하는 제목과 문장에 적합한 이모지하나 사용",
+      "summary": "시장 심리의 핵심을 한 줄로 요약",
+      "analysis": "현재 심리에 대한 핵심 분석 (핵심만 3문장 이내로 아주 간결하게 작성, 높은사람한테 보고하는 말투)",
+      "recommendation": ["투자자가 실천할 수 있는 전략 1", "전략 2", "전략 3"]
     }}
     
-    반드시 유효한 JSON이어야 하며, 한국어로 답변하세요.
+    반드시 유효한 JSON 형식이어야 하며, 한국어로 답변하세요.
     """
     
     try:
-        # 안전 설정 및 생성 설정 추가
-        generation_config = {
-            "temperature": 0.2,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 1024,
-            "response_mime_type": "application/json",
-        }
-        
-        response = model.generate_content(prompt, generation_config=generation_config)
-        
-        if not response or not response.candidates:
-            print("❌ AI 분석 에러: 응답 후보가 없습니다.")
-            return None
-            
-        text = response.text.strip()
-        
-        # 만약 response_mime_type이 적용되지 않아 백틱이 포함된 경우 대비
+        response = model.generate_content(prompt)
+        text = response.text
         if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
+            text = text.split("```json")[1].split("```")[0]
         elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
-            
-        return json.loads(text)
-    except json.JSONDecodeError as je:
-        print(f"❌ JSON 파싱 에러: {je}")
-        print(f"원본 텍스트: {text}")
-        return None
+            text = text.split("```")[1].split("```")[0]
+        
+        res_data = json.loads(text.strip())
+        return res_data
     except Exception as e:
-        print(f"❌ AI 분석 에러: {e}")
+        print(f"AI Analysis Error: {e}")
         return None
 
 def update_analysis(analysis_data, flow_data):
