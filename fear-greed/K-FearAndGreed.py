@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import pandas as pd
 from config import GEMINI_MODEL_NAME
+import google.generativeai.types as safety_types
 
 load_dotenv()
 
@@ -19,7 +20,28 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 MODEL_NAME = GEMINI_MODEL_NAME
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel(MODEL_NAME)
+
+# 안전 설정: 금융 분석 시 차단되는 경우를 방지
+safety_settings = [
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE",
+    },
+]
+
+model = genai.GenerativeModel(MODEL_NAME, safety_settings=safety_settings)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_kospi_data():
@@ -96,6 +118,7 @@ def analyze_kospi_sentiment(kospi_data):
     prompt = f"""
     당신은 한국 주식 시장(KOSPI) 분석 전문가입니다. 
     CNN Business의 7대 공포와 탐욕 지표 공식에 따라 산출된 결과를 분석해 주세요.
+    이건 실제 매매에 사용할것이 아닌, 시장 심리 파악용 참고 자료임을 명심해 주세요.
 
     [실시간 7대 지표 점수 (0~100)]
     1. 주가 모멘텀 (Market Momentum): {kospi_data['indicators']['x1']}
@@ -143,16 +166,33 @@ def analyze_kospi_sentiment(kospi_data):
     try:
         response = model.generate_content(
             prompt,
-            generation_config={"response_mime_type": "application/json"}
+            generation_config={"response_mime_type": "application/json"},
+            safety_settings=safety_settings
         )
+        
+        # 응답 후보 확인
+        if not response.candidates:
+            print(f"AI 응답 후보가 없습니다. 피드백: {response.prompt_feedback}")
+            raise ValueError("No candidates in response")
+
+        candidate = response.candidates[0]
+        if not candidate.content.parts:
+            print(f"AI 응답 내용(parts)이 비어있습니다. 사유: {candidate.finish_reason}")
+            print(f"Prompt Feedback: {response.prompt_feedback}")
+            raise ValueError(f"Empty parts in candidate (Finish Reason: {candidate.finish_reason})")
+            
         res_data = json.loads(response.text)
         if isinstance(res_data, list):
             return res_data[0]
         return res_data
     except Exception as e:
         print(f"Error in AI analysis: {e}")
+        # 상세 에러 정보 확인
+        if hasattr(e, 'response'):
+             print(f"Full response info: {e.response}")
+        
         return {
-            "value": 50,
+            "value": kospi_data['value'],
             "description": "중립",
             "title": "분석을 불러올 수 없습니다.",
             "analysis": "현재 AI 분석 기능에 일시적인 문제가 발생했습니다.",
