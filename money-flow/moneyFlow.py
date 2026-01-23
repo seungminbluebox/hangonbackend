@@ -59,11 +59,15 @@ TICKERS = {
         }
     },
     "Safe": {
-        "Assets": {
-            "Gold": "GC=F",
-            "USD/KRW": "KRW=X",
-            "US 10Y Yield": "^TNX",
-            "US 2Y Yield": "^IRX"
+        "Risk": {
+            "비트코인": "BTC-USD",
+            "나스닥(QQQ)": "QQQ",
+            "구리 선물": "HG=F"
+        },
+        "Safe": {
+            "금 선물": "GC=F",
+            "달러 인덱스(UUP)": "UUP",
+            "미 국채(TLT)": "TLT"
         }
     }
 }
@@ -110,13 +114,19 @@ def analyze_money_flow(flow_data, type_name):
     prompts = {
         "Domestic": "한국 증시(코스피, 코스닥)와 주요 업무 섹터별 자금 흐름을 분석하세요.",
         "US": "미국 증시(S&P500, 나스닥, 다우존스, 러셀2000)와 주요 섹터별 자금 흐름을 분석하세요.",
-        "Safe": "금, 달러, 국채 금리 등 안전자산과 매크로 지표 중심의 자금 흐름을 분석하세요."
+        "Safe": "비트코인, 나스닥, 구리(위험자산)와 금, 달러, 국채(안전자산) 간의 자금 이동 및 글로벌 매크로 심리를 분석하세요."
     }
+
+    # Safe 타입일 경우 추가 가이드 제공
+    analysis_guide = ""
+    if type_name == "Safe":
+        analysis_guide = "위험자산(Risk) 그룹과 안전자산(Safe) 그룹 중 어느 쪽에 더 '진짜 돈(거래량)'이 실리고 있는지 비교 분석하고, 현재 시장이 Risk-On(위험 선호)인지 Risk-Off(안전 선호)인지 명확히 진단하세요."
 
     prompt = f"""
     당신은 금융 시장의 자금 흐름을 분석하는 수석 전략가입니다. 
     다음 데이터를 바탕으로 현재 시장에서 '돈이 어디로 이동하고 있는지' 분석해 주세요.
     분석 대상: {prompts.get(type_name, type_name)}
+    {analysis_guide}
     
     데이터:
     {json.dumps(flow_data, indent=2, ensure_ascii=False)}
