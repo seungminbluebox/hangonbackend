@@ -24,42 +24,63 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 분석할 티커 정의
 TICKERS = {
-    "Risk": {
-        "KOSPI": "^KS11",
-        "S&P500": "^GSPC",
-        "NASDAQ": "^IXIC",
-        "Bitcoin": "BTC-USD"
+    "Domestic": {
+        "Index": {
+            "KOSPI": "^KS11",
+            "KOSDAQ": "^KQ11"
+        },
+        "Sectors": {
+            "반도체": "091160.KS", # KODEX 반도체
+            "바이오": "261220.KS", # KODEX 바이오
+            "2차전지": "305720.KS", # KODEX 2차전지산업
+            "은행": "091170.KS", # KODEX 은행
+            "방산": "461580.KS", # KODEX K-방산
+            "IT/게임": "091180.KS", # KODEX IT
+            "철강/소재": "117680.KS", # KODEX 철강
+            "조선": "466940.KS" # KODEX 조선
+        }
+    },
+    "US": {
+        "Index": {
+            "S&P500": "^GSPC",
+            "NASDAQ": "^IXIC",
+            "다우존스": "^DJI",
+            "러셀2000": "^RUT"
+        },
+        "Sectors": {
+            "기술주(XLK)": "XLK",
+            "반도체(SOXX)": "SOXX",
+            "금융(XLF)": "XLF",
+            "헬스케어(XLV)": "XLV",
+            "소비재(XLY)": "XLY",
+            "에너지(XLE)": "XLE",
+            "산업재(XLI)": "XLI",
+            "커뮤니케이션(XLC)": "XLC"
+        }
     },
     "Safe": {
-        "Gold": "GC=F",
-        "USD/KRW": "KRW=X",
-        "US 10Y Yield": "^TNX"
-    },
-    "Sectors": {
-        "반도체": "091160.KS",   # KODEX 반도체
-        "바이오": "261220.KS",       # KODEX 바이오
-        "2차전지": "305720.KS",   # KODEX 2차전지산업
-        "은행": "091170.KS",      # KODEX 은행
-        "방산": "461580.KS",      # KODEX K-방산 (대체)
-        "IT/게임": "091180.KS"    # KODEX IT
+        "Assets": {
+            "Gold": "GC=F",
+            "USD/KRW": "KRW=X",
+            "US 10Y Yield": "^TNX",
+            "US 2Y Yield": "^IRX"
+        }
     }
 }
 
-def get_flow_data():
-    print("Fetching Money Flow Data...")
+def get_flow_data(category_tickers):
+    print(f"Fetching Data for category...")
     results = {}
     
-    for category, tickers in TICKERS.items():
-        results[category] = {}
+    for subcat, tickers in category_tickers.items():
+        results[subcat] = {}
         for name, symbol in tickers.items():
             try:
                 ticker = yf.Ticker(symbol)
-                # 상대 거래량 계산을 위해 20일치 가져옴
                 hist = ticker.history(period="20d")
                 if hist.empty:
-                    if category == "Sectors": # ETF는 가끔 데이터 안나올 때 있음
-                        ticker = yf.Ticker(symbol)
-                        hist = ticker.history(period="1mo")
+                    # Alternative fetch for some ETFs
+                    hist = ticker.history(period="1mo")
                     if hist.empty: continue
                 
                 # 전일 대비 등락률
@@ -67,12 +88,12 @@ def get_flow_data():
                 prev_price = hist['Close'].iloc[-2]
                 change_pct = ((current_price - prev_price) / prev_price) * 100
                 
-                # 상대 거래량 (20일 평균 대비) - 돈의 쏠림 지표
+                # 상대 거래량 (20일 평균 대비)
                 current_vol = hist['Volume'].iloc[-1]
                 avg_vol = hist['Volume'].mean()
                 rel_vol = (current_vol / avg_vol) if avg_vol > 0 else 1
                 
-                results[category][name] = {
+                results[subcat][name] = {
                     "symbol": symbol,
                     "price": float(round(current_price, 2)),
                     "change": float(round(change_pct, 2)),
@@ -83,29 +104,36 @@ def get_flow_data():
                 
     return results
 
-def analyze_money_flow(flow_data):
-    print("Analyzing Money Flow with AI...")
+def analyze_money_flow(flow_data, type_name):
+    print(f"Analyzing {type_name} Money Flow with AI...")
     
+    prompts = {
+        "Domestic": "한국 증시(코스피, 코스닥)와 주요 업무 섹터별 자금 흐름을 분석하세요.",
+        "US": "미국 증시(S&P500, 나스닥, 다우존스, 러셀2000)와 주요 섹터별 자금 흐름을 분석하세요.",
+        "Safe": "금, 달러, 국채 금리 등 안전자산과 매크로 지표 중심의 자금 흐름을 분석하세요."
+    }
+
     prompt = f"""
     당신은 금융 시장의 자금 흐름을 분석하는 수석 전략가입니다. 
     다음 데이터를 바탕으로 현재 시장에서 '돈이 어디로 이동하고 있는지' 분석해 주세요.
+    분석 대상: {prompts.get(type_name, type_name)}
     
     데이터:
     {json.dumps(flow_data, indent=2, ensure_ascii=False)}
     
     분석 기준:
-    1. 위험 자산(주식, 코인) vs 안전 자산(금, 달러, 국채금리) 중 어디로 돈이 쏠리는가?
-    2. 한국 섹터 ETF 데이터 중 어떤 업종의 상대 거래량(rel_vol)이 높고 수익률이 좋은가? (진짜 돈이 쏠리는 곳)
-    3. 전반적인 시장의 심리와 내일부터의 대응 전략을 요약하세요.
-    4. 느낌표, 물결표같은 감정표현 금지 높은사람한테 보고하는 차분한 말투로 작성.
-    5. ~해라라는 단언적인 조언보단, 사용자가 네 의견만 맹신하여 따라하지 않도록 문장을 작성
-    6. 특수문자 **같은 물결표는 사용 금지**입니다. 텍스트만 작성해 주세요.
+    1. 해당 영역에서 현재 돈이 쏠리는 곳과 빠져나가는 곳은 어디인가?
+    2. 거래량(rel_vol)이 높은 항목과 가격 변동(change)을 결합하여 '진짜 돈의 움직임'을 포착하세요.
+    3. 전반적인 심리와 내일부터의 대응 전략을 요약하세요.
+    4. 느낌표, 물결표같은 감정표현 금지. 보고하는 차분한 말투로 작성.
+    5. 조언은 신중하게, 사용자가 맹신하지 않도록 작성.
+    6. 특수문자 **같은 기호는 절대 사용 금지.
+    7. ~하세요보단 ~를 권장합니다 같은 어투를 사용.
     결과는 반드시 아래 JSON 형식으로만 출력하세요:
     {{
-      "title": "오늘의 돈의 향방을 요약하는 짧고 강렬한 제목과 문장에 적합한 이모지하나 사용",
       "summary": "자금 흐름의 핵심을 한 줄로 요약",
-      "analysis": "현재 자금 흐름에 대한 핵심 분석 (핵심만 3문장 이내로 아주 간결하게 작성, 높은사람한테 보고하는 말투)",
-      "strategy": ["투자자가 실천할 수 있는 전략 1", "전략 2", "전략 3"]
+      "analysis": "핵심 분석 (3문장 이내, 간결하고 차분하게)",
+      "strategy": ["투자 전략 1", "전략 2", "전략 3"]
     }}
     
     반드시 유효한 JSON 형식이어야 하며, 한국어로 답변하세요.
@@ -119,52 +147,44 @@ def analyze_money_flow(flow_data):
         elif "```" in text:
             text = text.split("```")[1].split("```")[0]
         
-        res_data = json.loads(text.strip())
-        return res_data
+        return json.loads(text.strip())
     except Exception as e:
-        print(f"AI Analysis Error: {e}")
+        print(f"AI Analysis Error for {type_name}: {e}")
         return None
 
 def main():
-    flow_data = get_flow_data()
-    if not flow_data:
-        print("No data collected.")
-        return
-        
-    analysis_res = analyze_money_flow(flow_data)
-    if not analysis_res:
-        print("Analysis failed.")
-        return
-        
-    # Supabase 업데이트
-    data_to_upsert = {
-        "id": 1,
-        "flow_data": flow_data,
-        "title": analysis_res.get("title"),
-        "summary": analysis_res.get("summary"),
-        "analysis": analysis_res.get("analysis"),
-        "strategy": analysis_res.get("strategy"),
-        "updated_at": datetime.now().isoformat()
+    category_map = {
+        "Domestic": 1,
+        "US": 2,
+        "Safe": 3
     }
     
-    try:
-        # upsert 시도
-        supabase.table("money_flow").upsert(data_to_upsert).execute()
-        print("Successfully updated Money Flow Tracker!")
-    except Exception as e:
-        print(f"Error updating Supabase: {e}")
-        print("\n[알림] 'money_flow' 테이블이 없는 경우 Supabase SQL Editor에서 다음 명령어를 실행해주세요:")
-        print("""
-        CREATE TABLE money_flow (
-            id BIGINT PRIMARY KEY,
-            flow_data JSONB,
-            title TEXT,
-            summary TEXT,
-            analysis TEXT,
-            strategy JSONB,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-        """)
+    for cat_name, cat_id in category_map.items():
+        print(f"\n--- Processing {cat_name} ---")
+        flow_data = get_flow_data(TICKERS[cat_name])
+        if not flow_data:
+            print(f"No data for {cat_name}")
+            continue
+            
+        analysis_res = analyze_money_flow(flow_data, cat_name)
+        if not analysis_res:
+            print(f"Analysis failed for {cat_name}")
+            continue
+            
+        data_to_upsert = {
+            "id": cat_id,
+            "flow_data": flow_data,
+            "summary": analysis_res.get("summary"),
+            "analysis": analysis_res.get("analysis"),
+            "strategy": analysis_res.get("strategy"),
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        try:
+            supabase.table("money_flow").upsert(data_to_upsert).execute()
+            print(f"Successfully updated {cat_name} Money Flow (ID: {cat_id})")
+        except Exception as e:
+            print(f"Error updating Supabase for {cat_name}: {e}")
 
 if __name__ == "__main__":
     main()

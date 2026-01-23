@@ -25,13 +25,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Market Weather Update
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python market-weather/stockWeather.py
-
       - name: Run Money Flow Update
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
