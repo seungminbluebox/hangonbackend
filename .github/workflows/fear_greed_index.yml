@@ -2,7 +2,7 @@ name: fear_greed_index_update
 
 on:
   schedule:
-    - cron: "0 23 * * *" # UTC 기준 23:00 (한국 시간 오전 8:00)
+    - cron: "0 */3 * * *" # UTC 기준 23:00 (한국 시간 오전 8:00)
   workflow_dispatch:
 
 jobs:
