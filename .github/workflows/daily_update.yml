@@ -3,7 +3,7 @@ name: Daily News Update
 on:
   schedule:
     - cron: "57 23 * * *"
-  workflow_dispatch: # 수동 실행 버튼 활성화
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,11 +18,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      # [추가해야 할 부분] 의존성 설치 단계
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: Run dailyNews.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

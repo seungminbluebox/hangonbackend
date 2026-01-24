@@ -117,8 +117,8 @@ def analyze_kospi_sentiment(kospi_data):
     
     prompt = f"""
     당신은 한국 주식 시장(KOSPI) 분석 전문가입니다. 
-    CNN Business의 7대 공포와 탐욕 지표 공식에 따라 산출된 결과를 분석해 주세요.
-    이건 실제 매매에 사용할것이 아닌, 시장 심리 파악용 참고 자료임을 명심해 주세요.
+    당신의 역할은 시장 기술적 지표들을 바탕으로 '현재 시장의 투자 심리'를 객관적으로 브리핑하는 것입니다.
+    이것은 특정 종목에 대한 매수/매도 추천이 아니며, 오직 데이터 기반의 심리 상태 분석임을 명확히 인지하세요.
 
     [실시간 7대 지표 점수 (0~100)]
     1. 주가 모멘텀 (Market Momentum): {kospi_data['indicators']['x1']}
@@ -163,41 +163,38 @@ def analyze_kospi_sentiment(kospi_data):
     }}
     """
     
-    try:
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"},
-            safety_settings=safety_settings
-        )
-        
-        # 응답 후보 확인
-        if not response.candidates:
-            print(f"AI 응답 후보가 없습니다. 피드백: {response.prompt_feedback}")
-            raise ValueError("No candidates in response")
-
-        candidate = response.candidates[0]
-        if not candidate.content.parts:
-            print(f"AI 응답 내용(parts)이 비어있습니다. 사유: {candidate.finish_reason}")
-            print(f"Prompt Feedback: {response.prompt_feedback}")
-            raise ValueError(f"Empty parts in candidate (Finish Reason: {candidate.finish_reason})")
+    for attempt in range(3):
+        try:
+            response = model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"},
+                safety_settings=safety_settings
+            )
             
-        res_data = json.loads(response.text)
-        if isinstance(res_data, list):
-            return res_data[0]
-        return res_data
-    except Exception as e:
-        print(f"Error in AI analysis: {e}")
-        # 상세 에러 정보 확인
-        if hasattr(e, 'response'):
-             print(f"Full response info: {e.response}")
-        
-        return {
-            "value": kospi_data['value'],
-            "description": "중립",
-            "title": "분석을 불러올 수 없습니다.",
-            "analysis": "현재 AI 분석 기능에 일시적인 문제가 발생했습니다.",
-            "advice": ["시장의 기본 지표를 참고해 주세요."]
-        }
+            # 응답 후보 확인 및 내용 검증
+            if response.candidates and response.candidates[0].content.parts:
+                res_data = json.loads(response.text)
+                if isinstance(res_data, list):
+                    return res_data[0]
+                return res_data
+            else:
+                finish_reason = response.candidates[0].finish_reason if response.candidates else "No candidates"
+                print(f"Attempt {attempt + 1}: AI response empty. Reason: {finish_reason}")
+                continue
+                
+        except Exception as e:
+            print(f"Attempt {attempt + 1} error in AI analysis: {e}")
+            if attempt == 2:
+                break
+    
+    # 모든 시도가 실패한 경우 기본값 반환
+    return {
+        "value": kospi_data['value'],
+        "description": "중립",
+        "title": "시장 분위기를 읽는 중입니다",
+        "analysis": "현재 AI 분석이 지연되고 있습니다. 시장 지표 수치는 정상적으로 업데이트되었으니 공탐지수 점수를 우선 참고해 주세요.",
+        "advice": ["주요 기술적 지표를 함께 확인해 보세요.", "잠시 후 다시 시도해 주세요.", "객관적인 수치 위주로 시장을 판단하는 것이 좋아 보여요."]
+    }
 
 def update_db(ai_analysis):
     print("Updating Supabase fear_greed table for KOSPI (id=2)...")

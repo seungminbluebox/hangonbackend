@@ -2,9 +2,8 @@ name: other updates
 
 on:
   schedule:
-    # 3시간마다 실행 (UTC 기준)
     - cron: "0 */3 * * *"
-  workflow_dispatch: # 수동 실행 버튼 활성화
+  workflow_dispatch:
 
 jobs:
   update:
@@ -31,6 +30,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python money-flow/moneyFlow.py
+
       - name: Run Currency Desk Update
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

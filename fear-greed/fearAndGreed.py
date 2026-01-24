@@ -18,26 +18,26 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 MODEL_NAME = GEMINI_MODEL_NAME
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel(MODEL_NAME)
+
+# 안전 설정: 금융 분석 시 차단되는 경우를 방지
+safety_settings = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+]
+
+model = genai.GenerativeModel(MODEL_NAME, safety_settings=safety_settings)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_fear_greed_index():
-    try:
-        index = fear_and_greed.get()
-        return {
-            "value": round(index.value, 1),
-            "description": index.description,
-            "last_update": index.last_update.isoformat()
-        }
-    except Exception as e:
-        print(f"Error fetching Fear & Greed Index: {e}")
-        return None
-
+...
 def analyze_sentiment(fng_data):
     print("Analyzing market sentiment with AI...")
     prompt = f"""
     당신은 글로벌 금융 시장 분석 전문가입니다. 
-    현재 CNN Fear & Greed Index(공포와 탐욕 지수) 정보를 바탕으로 시장 상황을 분석해 주세요.
+    당신의 역할은 CNN Fear & Greed Index 정보를 바탕으로 현재 시장의 심리 상태를 객관적으로 브리핑하는 것입니다.
+    이것은 특정 자산에 대한 매수/매도 추천이 아니며, 데이터 기반의 기술적 심리 분석임을 명확히 인지하세요.
 
     [지수 정보]
     - 지수 값: {fng_data['value']} (0: 극도의 공포, 100: 극도의 탐욕)
@@ -64,23 +64,34 @@ def analyze_sentiment(fng_data):
     }}
     """
     
-    try:
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        res_data = json.loads(response.text)
-        # 만약 결과가 리스트 형태로 왔다면 첫 번째 요소를 사용
-        if isinstance(res_data, list):
-            return res_data[0]
-        return res_data
-    except Exception as e:
-        print(f"Error in AI analysis: {e}")
-        return {
-            "title": "분석을 불러올 수 없습니다.",
-            "analysis": "현재 AI 분석 기능에 일시적인 문제가 발생했습니다.",
-            "advice": ["시장의 기본 지표를 참고해 주세요."]
-        }
+    for attempt in range(3):
+        try:
+            response = model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"},
+                safety_settings=safety_settings
+            )
+            
+            if response.candidates and response.candidates[0].content.parts:
+                res_data = json.loads(response.text)
+                if isinstance(res_data, list):
+                    return res_data[0]
+                return res_data
+            else:
+                finish_reason = response.candidates[0].finish_reason if response.candidates else "No candidates"
+                print(f"Attempt {attempt + 1}: AI response empty. Reason: {finish_reason}")
+                continue
+                
+        except Exception as e:
+            print(f"Attempt {attempt + 1} error in AI analysis: {e}")
+            if attempt == 2:
+                break
+
+    return {
+        "title": "시장 분위기를 읽는 중입니다",
+        "analysis": "현재 AI 분석이 일시적으로 지연되고 있습니다. 지수 데이터는 정상적으로 업데이트되었으니 수치를 확인해 주세요.",
+        "advice": ["주요 기술 지표 위주로 참고해 보세요.", "잠시 후 다시 시도해 주세요.", "차분하게 시장을 지켜보는 것이 좋아 보여요."]
+    }
 
 def update_db(fng_data, ai_analysis):
     print("Updating Supabase fear_greed table...")

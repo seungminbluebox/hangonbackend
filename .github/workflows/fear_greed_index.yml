@@ -3,15 +3,15 @@ name: fear_greed_index_update
 on:
   schedule:
     - cron: "0 23 * * *" # UTC 기준 23:00 (한국 시간 오전 8:00)
-  workflow_dispatch: # 수동 실행 버튼 추가
+  workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -25,5 +25,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          python fear-greed/fearAndGreed.py # 공탐지수 AI 분석 업데이트
-          python fear-greed/K-FearAndGreed.py # 코스피 공탐지수 지수 업데이트
+          python fear-greed/fearAndGreed.py
+          python fear-greed/K-FearAndGreed.py
