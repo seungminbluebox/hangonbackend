@@ -31,7 +31,16 @@ model = genai.GenerativeModel(MODEL_NAME, safety_settings=safety_settings)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_fear_greed_index():
-...
+    try:
+        fng = fear_and_greed.get()
+        return {
+            'value': int(fng.value),
+            'description': fng.description
+        }
+    except Exception as e:
+        print(f"Error fetching Fear & Greed Index: {e}")
+        return None
+
 def analyze_sentiment(fng_data):
     print("Analyzing market sentiment with AI...")
     prompt = f"""
