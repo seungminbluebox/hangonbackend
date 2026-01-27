@@ -2,7 +2,7 @@ name: put Call Ratio Data
 
 on:
   schedule:
-    - cron: "13 04 * * *"
+    - cron: "57 04 * * *"
   workflow_dispatch:
 
 jobs:
