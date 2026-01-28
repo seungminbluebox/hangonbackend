@@ -29,6 +29,14 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python news/dailyNews.py
+
+      - name: Run dailyReport.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python news/dailyReport.py
+
       - name: Run creditBalanceTracker.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
