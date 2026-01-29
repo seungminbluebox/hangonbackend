@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime
 from pywebpush import webpush, WebPushException
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -57,4 +58,6 @@ def send_push_to_all(title, body, url="/"):
 
 if __name__ == "__main__":
     # 테스트용
-    send_push_to_all("Hang on!", "새로운 경제 리포트가 업데이트되었습니다.", "/news/daily-report")
+    now = datetime.now()
+    date_str = f"{now.month}월 {now.day}일"
+    send_push_to_all("Hang on!", f"{date_str} 새로운 경제 리포트가 업데이트되었습니다.", "/news/daily-report")

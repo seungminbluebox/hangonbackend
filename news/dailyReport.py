@@ -193,9 +193,11 @@ def main():
         # 푸시 알림 전송
         print("Sending push notifications...")
         try:
+            now = datetime.now()
+            date_str = f"{now.month}월 {now.day}일"
             send_push_to_all(
-                title="Hang on! 데일리 리포트 업데이트",
-                body=report.get("summary", "오늘의 새로운 경제 리포트가 도착했습니다."),
+                title="Hang on!",
+                body=f"{date_str} 새로운 경제 리포트가 업데이트되었습니다.",
                 url="/news/daily-report"
             )
         except Exception as e:
