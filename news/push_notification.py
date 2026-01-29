@@ -57,4 +57,4 @@ def send_push_to_all(title, body, url="/"):
 
 if __name__ == "__main__":
     # 테스트용
-    send_push_to_all("Hang on! 테스트", "새로운 경제 리포트가 업데이트되었습니다.", "/news/daily-report")
+    send_push_to_all("Hang on!", "새로운 경제 리포트가 업데이트되었습니다.", "/news/daily-report")
