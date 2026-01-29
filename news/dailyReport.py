@@ -12,6 +12,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from newspaper import Article, Config
 from config import GEMINI_MODEL_NAME
+from news.push_notification import send_push_to_all
 
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -189,6 +190,16 @@ def main():
     
     if report:
         save_to_supabase(report)
+        # 푸시 알림 전송
+        print("Sending push notifications...")
+        try:
+            send_push_to_all(
+                title="Hang on! 데일리 리포트 업데이트",
+                body=report.get("summary", "오늘의 새로운 경제 리포트가 도착했습니다."),
+                url="/news/daily-report"
+            )
+        except Exception as e:
+            print(f"Error sending push: {e}")
     else:
         print("Failed to generate report.")
 
