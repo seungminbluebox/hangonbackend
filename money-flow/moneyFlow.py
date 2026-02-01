@@ -195,6 +195,16 @@ def main():
             print(f"Successfully updated {cat_name} Money Flow (ID: {cat_id})")
         except Exception as e:
             print(f"Error updating Supabase for {cat_name}: {e}")
+            
+    # 모든 카테고리 업데이트 완료 후 푸시 알림
+    try:
+        send_push_to_all(
+            title="💰 실시간 자금 흐름 분석 완료",
+            body="국내/미국 증시 및 안전자산 간의 돈의 움직임을 AI가 분석했습니다. 지금 확인해보세요.",
+            url="/money-flow"
+        )
+    except Exception as e:
+        print(f"Failed to send push: {e}")
 
 if __name__ == "__main__":
     main()

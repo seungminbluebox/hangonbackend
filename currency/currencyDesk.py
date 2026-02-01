@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import json
 from config import GEMINI_MODEL_NAME
+from news.push_notification import send_push_to_all
 
 load_dotenv()
 
@@ -119,6 +120,16 @@ def update_currency_desk():
         result = supabase.table("currency_desk").upsert(payload).execute()
         print("Successfully updated Currency Desk!")
         
+        # 푸시 알림 전송
+        try:
+            send_push_to_all(
+                title=f"💵 {title}",
+                body="글로벌 환율 및 외환 시장 리포트가 업데이트되었습니다.",
+                url="/currency-desk"
+            )
+        except Exception as e:
+            print(f"Failed to send push: {e}")
+            
     except Exception as e:
         print(f"Update failed: {e}")
 

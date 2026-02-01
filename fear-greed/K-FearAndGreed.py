@@ -10,6 +10,7 @@ from datetime import datetime
 import pandas as pd
 from config import GEMINI_MODEL_NAME
 import google.generativeai.types as safety_types
+from news.push_notification import send_push_to_all
 
 load_dotenv()
 
@@ -211,6 +212,19 @@ def update_db(ai_analysis):
     try:
         result = supabase.table("fear_greed").upsert(data).execute()
         print("Successfully updated KOSPI Fear & Greed Index!")
+        
+        # 푸시 알림 전송
+        try:
+            val = data['value']
+            desc = data['description']
+            send_push_to_all(
+                title=f"🇰🇷 K-공포 탐욕 지수: {val} ({desc})",
+                body=f"국내 증시(KOSPI) 심리 지수가 업데이트되었습니다. 현재 단계는 '{desc}'입니다.",
+                url="/kospi-fear-greed"
+            )
+        except Exception as e:
+            print(f"Failed to send push: {e}")
+            
         return result
     except Exception as e:
         print(f"Error updating Supabase: {e}")

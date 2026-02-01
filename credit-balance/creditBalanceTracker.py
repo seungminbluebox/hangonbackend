@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 # 상위 디렉토리 참조
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import GEMINI_MODEL_NAME
+from news.push_notification import send_push_to_all
 
 load_dotenv()
 
@@ -274,6 +275,16 @@ def main():
                 if analysis_res:
                     update_analysis(analysis_res, latest_record)
                     print(f"✅ {latest_record['date']} 기준 분석 완료")
+                    
+                    # 푸시 알림 전송
+                    try:
+                        send_push_to_all(
+                            title="🏦 신용융자 잔고 업데이트",
+                            body=f"신규 데이터({latest_record['date']})가 수집되었습니다. 시장의 '빚투' 심리 분석을 확인하세요.",
+                            url="/credit-balance"
+                        )
+                    except Exception as e:
+                        print(f"Failed to send push: {e}")
         except Exception as e:
             print(f"❌ 분석 프로세스 중 에러: {e}")
     else:
