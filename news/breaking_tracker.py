@@ -10,10 +10,10 @@ from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from newspaper import Article, Config
-import google.generativeai as genai
+from google import genai
 
-# 상위 디렉토리 참조 추가
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# 상위 디렉토리 참조 추가 (로컬 config.py 우선권을 위해 sys.path 맨 앞에 추가)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import GEMINI_MODEL_NAME
 from news.push_notification import send_push_to_all
 
@@ -24,8 +24,7 @@ GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+client = genai.Client(api_key=GOOGLE_API_KEY)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 감시할 뉴스 소스 (RSS) - 실시간 '속보' 전용 시스템으로 전면 교체
@@ -177,7 +176,10 @@ def filter_breaking_news(headlines, recent_titles):
     """
 
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model=GEMINI_MODEL_NAME,
+            contents=prompt
+        )
         text = response.text
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0]

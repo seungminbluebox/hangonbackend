@@ -1,6 +1,7 @@
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# 상위 디렉토리 참조 (로컬 config.py 우선권을 위해 sys.path 맨 앞에 추가)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import yfinance as yf
 from google import genai
 from supabase import create_client, Client

@@ -1,13 +1,14 @@
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# 상위 디렉토리 참조 (로컬 config.py 우선권을 위해 sys.path 맨 앞에 추가)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import json
 import requests
 import feedparser
 import yfinance as yf
 from bs4 import BeautifulSoup
 from datetime import datetime
-import google.generativeai as genai
+from google import genai
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from newspaper import Article, Config
@@ -18,7 +19,7 @@ load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-genai.configure(api_key=GOOGLE_API_KEY)
+client = genai.Client(api_key=GOOGLE_API_KEY)
 MODEL_NAME = GEMINI_MODEL_NAME
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -158,9 +159,10 @@ def generate_daily_report(news_data, market_data):
     """
     
     try:
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config={"response_mime_type": "application/json"}
         )
         return json.loads(response.text)
     except Exception as e:
