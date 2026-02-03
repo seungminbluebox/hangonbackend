@@ -217,7 +217,7 @@ def main():
         try:
             send_push_to_all(
                 title="📰 오늘의 주요 뉴스 업데이트",
-                body=f"AI가 선정한 오늘의 핵심 뉴스 5개가 도착했습니다: {final_news[0]['keyword']} 외 4건",
+                body=f"오늘의 핵심 뉴스 5개가 도착했습니다: {final_news[0]['keyword']} 외 4건",
                 url="/news/daily-report"
             )
         except Exception as e:
