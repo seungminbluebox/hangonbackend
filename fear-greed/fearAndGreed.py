@@ -1,9 +1,10 @@
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import json
 import fear_and_greed
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from datetime import datetime
@@ -18,17 +19,16 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 MODEL_NAME = GEMINI_MODEL_NAME
 
-genai.configure(api_key=GOOGLE_API_KEY)
+client = genai.Client(api_key=GOOGLE_API_KEY)
 
 # 안전 설정: 금융 분석 시 차단되는 경우를 방지
 safety_settings = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
 ]
 
-model = genai.GenerativeModel(MODEL_NAME, safety_settings=safety_settings)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_fear_greed_index():
@@ -76,20 +76,22 @@ def analyze_sentiment(fng_data):
     
     for attempt in range(3):
         try:
-            response = model.generate_content(
-                prompt,
-                generation_config={"response_mime_type": "application/json"},
-                safety_settings=safety_settings
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    safety_settings=safety_settings,
+                    response_mime_type="application/json"
+                )
             )
             
-            if response.candidates and response.candidates[0].content.parts:
+            if response.text:
                 res_data = json.loads(response.text)
                 if isinstance(res_data, list):
                     return res_data[0]
                 return res_data
             else:
-                finish_reason = response.candidates[0].finish_reason if response.candidates else "No candidates"
-                print(f"Attempt {attempt + 1}: AI response empty. Reason: {finish_reason}")
+                print(f"Attempt {attempt + 1}: AI response empty.")
                 continue
                 
         except Exception as e:

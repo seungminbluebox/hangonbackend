@@ -1,12 +1,12 @@
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import json
 import requests
 import feedparser
 from bs4 import BeautifulSoup
 from datetime import datetime
-import google.generativeai as genai
+from google import genai
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from newspaper import Article, Config
@@ -17,7 +17,8 @@ load_dotenv()
 GOOGLE_API_KEY =  os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-genai.configure(api_key=GOOGLE_API_KEY)
+
+client = genai.Client(api_key=GOOGLE_API_KEY)
 MODEL_NAME = GEMINI_MODEL_NAME
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -124,8 +125,6 @@ def process_news_with_gemini(raw_news_list):
         print("No news to process.")
         return []
 
-    model = genai.GenerativeModel(MODEL_NAME)
-    
     prompt = f"""
     너는 전문 경제 애널리스트야. 아래 제공된 [뉴스 데이터]는 한국과 세계의 주요 경제 뉴스들이야.
     하루에 한번 5가지의 소식만 골라서 보여줘야 하니, 이 중에서 가장 '경제적 파급력(굵직한 소식)'이 크고 중요한 사건 5가지를 선별해줘. 
@@ -175,9 +174,10 @@ def process_news_with_gemini(raw_news_list):
     """
     
     try:
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config={"response_mime_type": "application/json"}
         )
         response_text = response.text
         

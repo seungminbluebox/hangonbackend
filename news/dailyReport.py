@@ -108,8 +108,6 @@ def fetch_market_summary():
 def generate_daily_report(news_data, market_data):
     print("Generating Daily Report with Gemini...")
     
-    model = genai.GenerativeModel(MODEL_NAME)
-    
     today_str = datetime.now().strftime("%Y년 %m월 %d일")
     
     prompt = f"""

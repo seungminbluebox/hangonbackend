@@ -1,5 +1,6 @@
 import os
 import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import time
 import json
 import requests
@@ -7,11 +8,13 @@ import pandas as pd
 from datetime import datetime
 from bs4 import BeautifulSoup
 from supabase import create_client, Client
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
+
 # 상위 디렉토리 참조
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import GEMINI_MODEL_NAME
 from news.push_notification import send_push_to_all
 
@@ -22,8 +25,7 @@ GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+client = genai.Client(api_key=GOOGLE_API_KEY)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def fetch_credit_balance_history(pages=10):
@@ -160,17 +162,21 @@ def analyze_credit_sentiment(history_df):
     try:
         # 안전 설정 추가 (금융 분석 시 차단 방지)
         safety_settings = [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+            types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+            types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+            types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
         ]
 
-        response = model.generate_content(prompt, safety_settings=safety_settings)
+        response = client.models.generate_content(
+            model=GEMINI_MODEL_NAME,
+            contents=prompt,
+            config=types.GenerateContentConfig(safety_settings=safety_settings)
+        )
         
         # 응답 검증
-        if not response.candidates or not response.candidates[0].content.parts:
-            print(f"⚠️ AI 응답 생성 실패 (Finish Reason: {response.candidates[0].finish_reason if response.candidates else 'Unknown'})")
+        if not response.text:
+            print(f"⚠️ AI 응답 생성 실패")
             return None
             
         text = response.text

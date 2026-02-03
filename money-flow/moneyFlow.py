@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import json
 import yfinance as yf
 import google.generativeai as genai
@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import pandas as pd
 from config import GEMINI_MODEL_NAME
+from news.push_notification import send_push_to_all
 
 load_dotenv()
 
