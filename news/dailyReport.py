@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from newspaper import Article, Config
 from config import GEMINI_MODEL_NAME
 from news.push_notification import send_push_to_all
+import base64
 
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -22,8 +23,36 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 client = genai.Client(api_key=GOOGLE_API_KEY)
 MODEL_NAME = GEMINI_MODEL_NAME
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+TTS_KEY=os.getenv("GOOGLE_TTS_API_KEY")
+# --- [모듈 4] TTS 생성 (Google Cloud TTS) ---
 
-# --- [모듈 1] 뉴스 데이터 수집 (DailyNews와 중복되지만 독립성 위해 포함) ---
+def generate_tts_content(text):
+    print("Generating TTS content with Google Cloud TTS...")
+    url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={TTS_KEY}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "input": {"text": text},
+        "voice": {
+            "languageCode": "ko-KR",
+            "name": "ko-KR-Chirp3-HD-Despina"
+        },
+        "audioConfig": {
+            "audioEncoding": "MP3"
+        }
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code == 200:
+            return response.json().get("audioContent")
+        else:
+            print(f"TTS API Error: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        print(f"Error generating TTS: {e}")
+        return None
+
+# --- [모듈 3] 보고서 생성 (Gemini) ---
 
 def fetch_naver_finance_main():
     print("Fetching Naver Finance Main News...")
@@ -151,8 +180,9 @@ def generate_daily_report(news_data, market_data):
     {{
         "date": "{datetime.now().strftime("%Y-%m-%d")}",
         "title": "...",
-        "content": " 여기에 전체 마크다운 리포트 내용 삽입 (구분선 특수문자 금지) ",
-        "summary": " 한 줄 요약 (리포트 상단에 강조될 내용) "
+        "content": " 여기에 전체 마크다운 리포트 내용 삽입 (구분선 특수문자 금지) 날짜는 여기에 포함하지 말것 ",
+        "summary": " 한 줄 요약 (리포트 상단에 강조될 내용) ",
+        "audio_script": " 년/월/일/요일 에 대한 리포트라는내용이 처음에 나올것, 전문 경제 앵커가 리포트를 부드럽게 낭독해주는 듯한 구어체 기반의 방송 대본 (마크다운 없이 텍스트로만 작성, '안녕하세요', '전해드립니다' 등의 자연스러운 연결어 포함) "
     }}
     """
     
@@ -179,7 +209,7 @@ def save_to_supabase(report_data):
         return result
     except Exception as e:
         print(f"Error saving to Supabase: {e}")
-        print("Creating table might be needed: CREATE TABLE daily_reports (id bigint primary key generated always as identity, date date unique, title text, content text, summary text, created_at timestamptz default now());")
+        print("Creating table might be needed: CREATE TABLE daily_reports (id bigint primary key generated always as identity, date date unique, title text, content text, summary text, audio_script text, audio_content text, created_at timestamptz default now());")
 
 def main():
     news_kr = fetch_naver_finance_main()
@@ -189,6 +219,13 @@ def main():
     report = generate_daily_report(news_kr + news_us, market)
     
     if report:
+        # TTS 생성 및 추가
+        if report.get("audio_script"):
+            audio_content = generate_tts_content(report["audio_script"])
+            if audio_content:
+                report["audio_content"] = audio_content
+                print("Audio content successfully generated and added to report.")
+        
         save_to_supabase(report)
         # 푸시 알림 전송
         print("Sending push notifications...")
