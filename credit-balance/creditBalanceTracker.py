@@ -11,6 +11,7 @@ from supabase import create_client, Client
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from news.push_notification import send_push_to_all
 
 
 # 상위 디렉토리 참조
