@@ -12,7 +12,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
 VAPID_CLAIMS = {
-    "sub": "mailto:boxmagic25@gmail.com"
+    "sub": "mailto:boxmagic25@gmail.com"    
 }
 
 def send_push_to_all(title, body, url="/"):
