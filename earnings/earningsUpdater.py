@@ -45,20 +45,16 @@ def format_revenue(value, country):
 
 def update_past_earnings():
     """
-    과거 데이터만 업데이트.
-    ⚠️ 매출값(revenue_actual, revenue_actual_formatted)만 채워넣음
-    기존 데이터는 절대 덮어쓰지 않음 (eps_estimate, eps_actual 등)
-    
-    - earnings_calendar에서 date < today인 레코드 조회
-    - revenue_actual이 NULL인 레코드만 업데이트 시도
-    - 다른 필드는 건드리지 않음
+    과거 데이터 업데이트.
+    1️⃣ revenue_actual이 NULL인 레코드만 업데이트 (매출값)
+    2️⃣ 모든 과거 데이터에 대해 현재 주가 업데이트
     """
     
     if not supabase:
         print("❌ Supabase 설정 누락")
         return
     
-    print("🔄 과거 실적 데이터(매출값) 업데이트 시작...")
+    print("🔄 과거 실적 데이터 업데이트 시작...")
     
     today = datetime.now().date()
     
@@ -75,48 +71,83 @@ def update_past_earnings():
     
     print(f"📋 과거 레코드: {len(past_records)}개")
     
+    # ==================== 2️⃣ 모든 과거 데이터의 현재 주가 업데이트 ====================
+    print("💰 모든 과거 데이터의 현재 주가 업데이트 중...")
+    price_update_count = 0
+    
+    for record in past_records:
+        symbol = record['symbol']
+        date_str = record['date']
+        
+        try:
+            # 현재 주가가 없으면 조회
+            if record.get('current_price') is None:
+                try:
+                    stock = yf.Ticker(symbol)
+                    hist = stock.history(period='1d')
+                    if not hist.empty:
+                        current_price = float(hist['Close'].iloc[-1])
+                        supabase.table("earnings_calendar").update({'current_price': current_price}).eq("symbol", symbol).eq("date", date_str).execute()
+                        print(f"  ✅ {symbol} ({date_str}) 주가 추가: ${current_price:.2f}" if symbol not in ['KS', 'KQ'] else f"  ✅ {symbol} ({date_str}) 주가 추가: ₩{current_price:,.0f}")
+                        price_update_count += 1
+                except Exception as e:
+                    pass
+        except Exception as e:
+            pass
+    
+    print(f"📊 총 {price_update_count}개 레코드에 주가 추가 완료")
+    
+    # ==================== 1️⃣ revenue_actual이 NULL인 레코드만 업데이트 (매출값) ====================
     # revenue_actual이 이미 있는 것들은 스킵
     needs_update = [r for r in past_records if r.get('revenue_actual') is None]
     print(f"⏳ 매출값 미보유 레코드: {len(needs_update)}개")
     
-    update_count = 0
+    revenue_update_count = 0
     
     for record in needs_update:
         symbol = record['symbol']
         country = record['country']
         date_str = record['date']
+        earning_date = datetime.fromisoformat(date_str).date()
         
         try:
             # yfinance에서 현재 데이터 재조회
             stock = yf.Ticker(symbol)
             
-            # quarterly_income_stmt에서 매출(Revenue) 조회 (가장 최근 분기)
+            # quarterly_income_stmt에서 매출(Revenue) 조회
             try:
                 income_stmt = stock.quarterly_income_stmt
                 if income_stmt is not None and not income_stmt.empty:
-                    # 'Total Revenue' 행 찾기
-                    revenue_row = None
-                    for idx in income_stmt.index:
-                        if 'Total Revenue' in str(idx) or 'Revenue' in str(idx):
-                            revenue_row = income_stmt.loc[idx]
-                            break
+                    latest_revenue = None
                     
-                    if revenue_row is not None:
-                        # 가장 최근(첫 번째 컬럼)의 매출 데이터
-                        latest_revenue = revenue_row.iloc[0]
+                    # 발표 날짜 기준으로 해당 분기 찾기
+                    # 발표는 보통 분기 종료 후 20-50일 후에 발생
+                    if 'Total Revenue' in income_stmt.index:
+                        for col_idx, col_date in enumerate(income_stmt.columns):
+                            col_date_obj = col_date.date() if hasattr(col_date, 'date') else col_date
+                            # 발표 날짜가 분기 종료 후 3개월 이내면 그 분기 데이터 사용
+                            if col_date_obj < earning_date < col_date_obj + timedelta(days=120):
+                                val = income_stmt.loc['Total Revenue'].iloc[col_idx]
+                                if pd.notnull(val):
+                                    latest_revenue = val
+                                    break
                         
-                        if pd.notnull(latest_revenue):
-                            # ✅ 매출값만 업데이트 (다른 필드는 건드리지 않음)
-                            update_data = {
-                                'revenue_actual': float(latest_revenue),
-                                'revenue_actual_formatted': format_revenue(float(latest_revenue), country),
-                                'updated_at': datetime.now().isoformat()
-                            }
-                            supabase.table("earnings_calendar").update(update_data).eq("symbol", symbol).eq("date", date_str).execute()
-                            print(f"✅ {symbol} ({date_str}) 매출 추가: {update_data['revenue_actual_formatted']}")
-                            update_count += 1
-                        else:
-                            print(f"⏳ {symbol} ({date_str}) yfinance 아직 미반영 (재시도 필요)")
+                        # 못 찾으면 최신 분기 사용
+                        if latest_revenue is None:
+                            latest_revenue = income_stmt.loc['Total Revenue'].iloc[0]
+                    
+                    if latest_revenue is not None and pd.notnull(latest_revenue):
+                        # ✅ 매출값 업데이트
+                        update_data = {
+                            'revenue_actual': float(latest_revenue),
+                            'revenue_actual_formatted': format_revenue(float(latest_revenue), country),
+                            'updated_at': datetime.now().isoformat()
+                        }
+                        supabase.table("earnings_calendar").update(update_data).eq("symbol", symbol).eq("date", date_str).execute()
+                        print(f"✅ {symbol} ({date_str}) 매출: {update_data['revenue_actual_formatted']}")
+                        revenue_update_count += 1
+                    else:
+                        print(f"⏳ {symbol} ({date_str}) yfinance 아직 미반영 (재시도 필요)")
             except Exception as e:
                 print(f"⚠️ {symbol} quarterly_income_stmt 조회 실패: {e}")
                 continue
@@ -125,7 +156,7 @@ def update_past_earnings():
             print(f"⚠️ {symbol} 처리 중 오류: {e}")
             continue
     
-    print(f"📊 총 {update_count}개 레코드에 매출값 추가 완료")
+    print(f"📊 총 {revenue_update_count}개 레코드에 매출값 추가 완료")
 
 if __name__ == "__main__":
     update_past_earnings()

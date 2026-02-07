@@ -206,6 +206,16 @@ def fetch_earnings_data(tickers, name_mapping, days_past=14, days_future=120):
             if not logo_url:
                 logo_url = f"https://financialmodelingprep.com/image-stock/{symbol.split('.')[0]}.png"
 
+            # 현재 주가 조회
+            current_price = None
+            try:
+                hist = stock.history(period='1d')
+                if not hist.empty:
+                    current_price = float(hist['Close'].iloc[-1])
+                    print(f"  💰 {symbol} 현재가: {current_price:.2f}")
+            except Exception as e:
+                print(f"  ⚠️ {symbol} 현재가 조회 실패: {e}")
+
             # 2026년 이후 데이터만 필터링
             df_filtered = df[df.index.year >= 2026].head(8)
             
@@ -238,6 +248,7 @@ def fetch_earnings_data(tickers, name_mapping, days_past=14, days_future=120):
                     'revenue_estimate_formatted': format_revenue(cal_rev_est, country),
                     'revenue_actual': None,
                     'revenue_actual_formatted': "N/A",
+                    'current_price': current_price,
                     'updated_at': datetime.now().isoformat()
                 })
             
@@ -284,6 +295,7 @@ def sync_to_supabase(data_list):
                     'eps_estimate': record['eps_estimate'],
                     'revenue_estimate': record['revenue_estimate'],
                     'revenue_estimate_formatted': record['revenue_estimate_formatted'],
+                    'current_price': record.get('current_price'),
                     'updated_at': record['updated_at']
                     # ⚠️ revenue_actual, revenue_actual_formatted는 절대 포함하지 않음!
                     # 기존 값을 보존하려면 빈 필드만 보낸다
