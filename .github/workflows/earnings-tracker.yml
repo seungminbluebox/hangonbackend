@@ -30,7 +30,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           LOGODEV_PUBLISHABLE_KEY: ${{ secrets.LOGODEV_PUBLISHABLE_KEY }}
-        run: python backend/earnings/earningsTracker.py
+        run: python earnings/earningsTracker.py
 
       - name: Notify on Failure
         if: failure()

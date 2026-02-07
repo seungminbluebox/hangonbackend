@@ -28,7 +28,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python backend/earnings/monitoredStocksManager.py
+        run: python earnings/monitoredStocksManager.py
 
       - name: Notify on Failure
         if: failure()
