@@ -98,14 +98,25 @@ def get_kospi_top_tickers(limit=50):
 def resolve_ticker_list():
     """관심 종목 리스트와 캐시된 한글명을 결정합니다."""
     # 1. Supabase 'monitored_stocks' 테이블 활용
+    mapping = {}
+    tickers = []
+    
     if supabase:
         try:
-            res = supabase.table("monitored_stocks").select("symbol, name").eq("is_active", True).execute()
+            res = supabase.table("monitored_stocks").select("symbol, name, name_ko").eq("is_active", True).execute()
             if res.data and len(res.data) > 0:
                 print(f"✅ Supabase에서 {len(res.data)}개의 종목을 가져왔습니다.")
-                mapping = {item['symbol']: item.get('name') for item in res.data}
-                return list(mapping.keys()), mapping
-        except Exception:
+                for item in res.data:
+                    symbol = item['symbol']
+                    tickers.append(symbol)
+                    # 한글명이 있으면 사용, 없으면 영문명 사용
+                    mapping[symbol] = {
+                        'name': item.get('name', symbol),
+                        'name_ko': item.get('name_ko')  # None이면 나중에 번역 필요
+                    }
+                return tickers, mapping
+        except Exception as e:
+            print(f"⚠️ Supabase 조회 실패: {e}")
             pass
 
     # 2. 동적 수집 (US Top 100 + KR Top 50)
@@ -116,11 +127,15 @@ def resolve_ticker_list():
     combined_mapping = {**us_mapping, **kr_mapping}
     tickers = list(combined_mapping.keys())
     
+    # 매핑 포맷: {symbol: {'name': 영문명, 'name_ko': None}}
+    mapping = {t: {'name': combined_mapping[t], 'name_ko': None} for t in tickers}
+    
     if not tickers:
         fallback = ["AAPL", "MSFT", "NVDA", "005930.KS", "000660.KS"]
-        return fallback, {t: t for t in fallback}
+        mapping = {t: {'name': t, 'name_ko': None} for t in fallback}
+        return fallback, mapping
         
-    return tickers, combined_mapping
+    return tickers, mapping
 
 def format_revenue(value, country):
     """매출액 단위 변환 로직"""
@@ -161,11 +176,26 @@ def fetch_earnings_data(tickers, name_mapping, days_past=14, days_future=120):
     """
     print(f"🚀 {len(tickers)}개 종목에 대한 미래 실적 데이터 수집 시작...")
     
+    # 한글명이 없는 US 기업들만 번역 필요
     us_tickers = [t for t in tickers if '.KS' not in t and '.KQ' not in t]
-    us_en_names = [name_mapping.get(t, t) for t in us_tickers]
+    us_need_translation = [
+        t for t in us_tickers 
+        if name_mapping[t]['name_ko'] is None
+    ]
     
-    print("🧠 Gemini를 사용하여 미국 기업명을 한글로 변환 중...")
-    translated_names = translate_company_names(us_en_names)
+    translated_names = {}
+    if us_need_translation:
+        print(f"🧠 Gemini를 사용하여 {len(us_need_translation)}개 미국 기업명을 한글로 변환 중...")
+        us_en_names = [name_mapping[t]['name'] for t in us_need_translation]
+        try:
+            translated_names = translate_company_names(us_en_names)
+            print(f"✅ {len(translated_names)}개 기업명 번역 완료")
+        except Exception as e:
+            print(f"⚠️ Gemini 번역 실패: {e}")
+            # 번역 실패 시 영문명 사용
+            translated_names = {name_mapping[t]['name']: name_mapping[t]['name'] for t in us_need_translation}
+    else:
+        print("✅ 모든 기업명이 DB에서 조회됨 (번역 불필요)")
     
     results = []
     for symbol in tickers:
@@ -190,7 +220,18 @@ def fetch_earnings_data(tickers, name_mapping, days_past=14, days_future=120):
             
             # 기업 정보
             country = 'KR' if '.KS' in symbol or '.KQ' in symbol else 'US'
-            company_name = name_mapping.get(symbol, symbol) if country == 'KR' else translated_names.get(name_mapping.get(symbol, symbol), name_mapping.get(symbol, symbol))
+            
+            # 한글명 조회 (DB → Gemini 번역 → 폴백)
+            if country == 'KR':
+                # 한국 회사는 DB의 name_ko 사용
+                company_name = name_mapping[symbol]['name_ko'] or name_mapping[symbol]['name']
+            else:
+                # 미국 회사는 DB name_ko → Gemini 번역 → 원래 영문명
+                company_name = (
+                    name_mapping[symbol]['name_ko'] or 
+                    translated_names.get(name_mapping[symbol]['name']) or
+                    name_mapping[symbol]['name']
+                )
             
             # 로고 URL 추출
             info = stock.info
