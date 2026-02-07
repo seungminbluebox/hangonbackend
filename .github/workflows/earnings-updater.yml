@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  earnings-updater:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,13 +17,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Update Past Earnings (Real Values)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python earnings/earningsUpdater.py
+        run: |
+          cd backend
+          python earnings/earningsUpdater.py
 
       - name: Notify on Failure
         if: failure()
