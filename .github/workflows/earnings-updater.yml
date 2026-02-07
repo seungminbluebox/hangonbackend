@@ -28,9 +28,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: |
-          cd backend
-          python earnings/earningsUpdater.py
+        run: python earnings/earningsUpdater.py
 
       - name: Notify on Failure
         if: failure()
