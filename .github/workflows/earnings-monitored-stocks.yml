@@ -1,0 +1,35 @@
+name: Earnings - Monitored Stocks Sync
+
+on:
+  schedule:
+    # 월요일 오후 1시 KST (= 월요일 04:00 UTC)
+    - cron: "43 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  sync-monitored-stocks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Sync Monitored Stocks
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python backend/earnings/monitoredStocksManager.py
+
+      - name: Notify on Failure
+        if: failure()
+        run: echo "❌ Monitored Stocks Sync 실패"
