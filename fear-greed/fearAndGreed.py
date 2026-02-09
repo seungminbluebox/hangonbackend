@@ -129,7 +129,7 @@ def update_db(fng_data, ai_analysis):
             desc = data['description']
             send_push_to_all(
                 title=f"📊 공포 탐욕 지수: {val} ({desc})",
-                body=f"현재 글로벌 시장 심리는 '{desc}' 단계입니다. AI의 분석을 확인해보세요.",
+                body=f"현재 글로벌 시장 심리는 '{desc}' 단계입니다. 분석을 확인해보세요.",
                 url="/fear-greed"
             )
         except Exception as e:
