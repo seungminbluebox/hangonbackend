@@ -1,9 +1,8 @@
-name: fear_greed_index_update
+name: Monthly Market Holidays Update
 
 on:
   schedule:
-    - cron: "57 21 * * 1-5" # 월-금 UTC 21:57 (한국 시간 오전 6:57)
-
+    - cron: "24 0 1 * *" # 매월 1일 00:00 UTC (09:00 KST)
   workflow_dispatch:
 
 jobs:
@@ -24,12 +23,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Update News & Fear-Greed
+      - name: Run holidayTracker.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
-        run: |
-          python fear-greed/fearAndGreed.py
-          python fear-greed/K-FearAndGreed.py
+        run: python holidays/holidayTracker.py

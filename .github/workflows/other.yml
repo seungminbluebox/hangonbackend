@@ -2,7 +2,7 @@ name: other updates
 
 on:
   schedule:
-    - cron: "57 */3 * * *" # UTC 기준 23:00 (한국 시간 오전 8:00)
+    - cron: "57 */6 * * 1-5" # 월-금 6시간마다 (평일만 실행)
 
   workflow_dispatch:
 
