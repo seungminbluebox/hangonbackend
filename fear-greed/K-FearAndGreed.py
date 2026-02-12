@@ -158,7 +158,7 @@ def analyze_kospi_sentiment(kospi_data):
     {{
         "value": {kospi_data['value']},
         "description": "상태(한글로)",
-        "title": "요약 제목 (20자 이내)",
+        "title": "요약 제목 (~,-,! 사용금지, 20자 이내)",
         "analysis": "분석 내용",
         "advice": ["조언1", "조언2", "조언3"]
     }}
