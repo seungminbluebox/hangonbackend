@@ -32,13 +32,13 @@ else:
 # Gemini 클라이언트 초기화
 genai_client = genai.Client(api_key=GOOGLE_API_KEY) if GOOGLE_API_KEY else None
 
-def notify_upcoming_holidays():
+def notify_upcoming_holidays(mode=None):
     """
-    증시 휴장일 알림 시스템
-    한국: 휴장 전날 밤 9시 알림
-    미국: 휴장 당일 오전 9시 알림
+    증시 휴장일 알림 시스템 (GitHub Actions 대응 단발성 실행)
+    mode: 'KR' (내일 한국 휴장 체크) 또는 'US' (오늘 미국 휴장 체크)
     """
     if not supabase:
+        print("❌ Supabase 클라이언트가 설정되지 않았습니다.")
         return
 
     try:
@@ -46,36 +46,40 @@ def notify_upcoming_holidays():
         today_str = now_kst.strftime('%Y-%m-%d')
         tomorrow_str = (now_kst + timedelta(days=1)).strftime('%Y-%m-%d')
         
-        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] Checking for holiday notifications...")
+        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] Mode: {mode} - Checking for holiday notifications...")
 
-        # 1. 한국 휴장일 체크 (내일이 휴장일인 경우, 오늘 밤 9시에 알림)
-        if now_kst.hour == 21:
+        # 1. 한국 휴장일 체크
+        if mode == 'KR':
             res = supabase.table("market_holidays").select("*").eq("date", tomorrow_str).eq("country", "KR").execute()
             if res.data:
                 holiday = res.data[0]
                 send_push_notification(
                     title="🇰🇷 내일은 국내 증시 휴장일입니다",
-                    body=f"내일({tomorrow_str})은 {holiday['name_ko']}로 인해 한국 시장이 휴장합니다. 투자에 유의하세요.",
+                    body=f"내일({tomorrow_str})은 {holiday['name_ko']}로 인해 한국 시장이 휴장합니다.",
                     url="/market-holidays",
                     category="market_holidays"
                 )
-                print(f"KR Holiday Notification Sent: {holiday['name_ko']}")
+                print(f"✅ KR Holiday Notification Sent: {holiday['name_ko']}")
+            else:
+                print("ℹ️ 내일(KR)은 휴장일이 아닙니다.")
 
-        # 2. 미국 휴장일 체크 (오늘이 휴장일인 경우, 오늘 아침 9시에 알림)
-        if now_kst.hour == 9:
+        # 2. 미국 휴장일 체크
+        elif mode == 'US':
             res = supabase.table("market_holidays").select("*").eq("date", today_str).eq("country", "US").execute()
             if res.data:
                 holiday = res.data[0]
                 send_push_notification(
                     title="🇺🇸 오늘은 미국 증시 휴장일입니다",
-                    body=f"오늘({today_str})은 {holiday['name_ko']}로 인해 미국 시장이 휴장합니다. 서비스 이용에 참고하세요.",
+                    body=f"오늘({today_str})은 {holiday['name_ko']}로 인해 미국 시장이 휴장합니다.",
                     url="/market-holidays",
                     category="market_holidays"
                 )
-                print(f"US Holiday Notification Sent: {holiday['name_ko']}")
+                print(f"✅ US Holiday Notification Sent: {holiday['name_ko']}")
+            else:
+                print("ℹ️ 오늘(US)은 휴장일이 아닙니다.")
 
     except Exception as e:
-        print(f"Error in notify_upcoming_holidays: {e}")
+        print(f"❌ Error in notify_upcoming_holidays: {e}")
 
 def translate_holiday_names(holidays_list):
     """
@@ -231,31 +235,20 @@ def fetch_and_save_holidays(year):
             print(f"❌ Error during Supabase upsert: {e}")
 
 if __name__ == "__main__":
-    print("🎬 Holiday Tracker & Notifier is running...")
-    
-    # 처음 실행 시 1회 데이터 수집
-    for year in [2025, 2026]:
-        print(f"\n--- Initial Fetching for Year: {year} ---")
-        fetch_and_save_holidays(year)
-    
-    while True:
-        try:
-            # 알림 체크
-            notify_upcoming_holidays()
-            
-            # 매일 정오에 한 번씩 데이터도 새로 갱신 (선택 사항)
-            now = datetime.now(pytz.timezone('Asia/Seoul'))
-            if now.hour == 12:
-                print("\n--- Daily Update: Fetching Holidays ---")
-                fetch_and_save_holidays(now.year)
-                fetch_and_save_holidays(now.year + 1)
-            
-            # 1시간 대기 (알림 체크 누락 방지 및 리소스 절약)
-            time.sleep(3600) 
-            
-        except KeyboardInterrupt:
-            print("Tracker stopped by user.")
-            break
-        except Exception as e:
-            print(f"Error in main loop: {e}")
-            time.sleep(600)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', choices=['KR', 'US', 'COLLECT'], help='KR: 내일 한국 휴장 알림, US: 오늘 미국 휴장 알림, COLLECT: 데이터 업데이트')
+    args = parser.parse_args()
+
+    if not args.mode:
+        print("❌ 실행 모드(--mode KR|US|COLLECT)를 지정해주세요.")
+        sys.exit(1)
+
+    if args.mode == 'COLLECT':
+        print("🎬 Updating Holiday Data...")
+        current_year = datetime.now().year
+        for year in [current_year, current_year + 1]:
+            fetch_and_save_holidays(year)
+    else:
+        print(f"🎬 Running Holiday Notifier ({args.mode})...")
+        notify_upcoming_holidays(args.mode)
