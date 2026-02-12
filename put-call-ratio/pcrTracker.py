@@ -208,9 +208,20 @@ def main():
             
             # 푸시 알림 전송 (카테고리: us_pcr)
             try:
+                total_pcr = latest_data.get('total', 0)
+                if total_pcr >= 1.0:
+                    title = "🚨 [긴급] 시장 공포 구간 진입 (PCR 1.0+)"
+                    body = f"현재 PCR 지수가 {total_pcr}로 공포 심리가 강해지고 있습니다. 시장 바닥 확인이 필요합니다."
+                elif total_pcr <= 0.7:
+                    title = "🤑 [탐욕] 시장 낙관론 과열 (PCR 0.7-)"
+                    body = f"현재 PCR 지수가 {total_pcr}로 탐욕 심리가 강합니다. 고점 과열 가능성에 유의하세요."
+                else:
+                    title = "⚖️ 시장 심리 지표(PCR) 업데이트"
+                    body = "풋/콜 옵션 비율 분석이 완료되었습니다. 현재 투자자들의 심리를 확인하세요."
+
                 send_push_notification(
-                    title="⚖️ 시장 심리 지표(PCR) 업데이트",
-                    body="풋/콜 옵션 비율 분석이 완료되었습니다. 현재 투자자들의 심리를 확인하세요.",
+                    title=title,
+                    body=body,
                     url="/put-call-ratio",
                     category="us_pcr"
                 )

@@ -158,7 +158,7 @@ def analyze_kospi_sentiment(kospi_data):
     {{
         "value": {kospi_data['value']},
         "description": "상태(한글로)",
-        "title": "요약 제목",
+        "title": "요약 제목 (20자 이내)",
         "analysis": "분석 내용",
         "advice": ["조언1", "조언2", "조언3"]
     }}
@@ -199,6 +199,16 @@ def analyze_kospi_sentiment(kospi_data):
 
 def update_db(ai_analysis):
     print("Updating Supabase fear_greed table for KOSPI (id=2)...")
+    
+    # 이전 상태 가져오기
+    prev_desc = None
+    try:
+        prev_res = supabase.table("fear_greed").select("description").eq("id", 2).maybeSingle().execute()
+        if prev_res.data:
+            prev_desc = prev_res.data.get("description")
+    except Exception as e:
+        print(f"⚠️ 이전 상태 조회 실패: {e}")
+
     data = {
         "id": 2, # KOSPI 전용 ID
         "value": ai_analysis['value'],
@@ -213,13 +223,33 @@ def update_db(ai_analysis):
         result = supabase.table("fear_greed").upsert(data).execute()
         print("Successfully updated KOSPI Fear & Greed Index!")
         
+        # 히스토리 테이블에 수치 저장 (KR 전용)
+        try:
+            history_data = {
+                "value": ai_analysis['value'],
+                "description": ai_analysis['description']
+            }
+            supabase.table("fear_greed_history_kr").insert(history_data).execute()
+            print("✅ KR Fear & Greed History recorded.")
+        except Exception as e:
+            print(f"⚠️ KR History recording failed: {e}")
+
         # 푸시 알림 전송 (카테고리: kr_fear_greed)
         try:
             val = data['value']
             desc = data['description']
+            
+            # 구간 진입 알림 처리
+            if prev_desc and prev_desc != desc:
+                title = f"🚩 KOSPI 심리 '{desc}' 구간 진입"
+                body = f"국내 증시 공탐지수가 {val}점을 기록하며 '{desc}' 단계로 들어섰습니다."
+            else:
+                title = f"🇰🇷 K-공포 탐욕 지수: {val} ({desc})"
+                body = f"국내 증시(KOSPI) 심리 지수가 업데이트되었습니다. 현재 단계는 '{desc}'입니다."
+
             send_push_notification(
-                title=f"🇰🇷 K-공포 탐욕 지수: {val} ({desc})",
-                body=f"국내 증시(KOSPI) 심리 지수가 업데이트되었습니다. 현재 단계는 '{desc}'입니다.",
+                title=title,
+                body=body,
                 url="/kospi-fear-greed",
                 category="kr_fear_greed"
             )

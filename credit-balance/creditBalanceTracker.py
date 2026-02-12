@@ -284,9 +284,20 @@ def main():
                     
                     # 푸시 알림 전송 (카테고리: kr_credit_balance)
                     try:
+                        ratio = (latest_record['total'] / latest_record['customer_deposit']) * 100
+                        if ratio >= 40:
+                            title = "🚨 [위험] 신용잔고 극도 과열 (40%+)"
+                            body = f"예탁금 대비 신용 비율이 {ratio:.1f}%로 '위험' 구간입니다. 리스크에 극도로 유의하세요."
+                        elif ratio >= 35:
+                            title = "⚠️ [주의] 신용잔고 주의 구간 (35%+)"
+                            body = f"예탁금 대비 신용 비율이 {ratio:.1f}%로 '주의' 구간에 진입했습니다."
+                        else:
+                            title = "🏦 신용융자 잔고 업데이트"
+                            body = f"신규 데이터({latest_record['date']})가 수집되었습니다. 시장의 '빚투' 심리 분석을 확인하세요."
+
                         send_push_notification(
-                            title="🏦 신용융자 잔고 업데이트",
-                            body=f"신규 데이터({latest_record['date']})가 수집되었습니다. 시장의 '빚투' 심리 분석을 확인하세요.",
+                            title=title,
+                            body=body,
                             url="/credit-balance",
                             category="kr_credit_balance"
                         )

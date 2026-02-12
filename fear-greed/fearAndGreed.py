@@ -68,7 +68,7 @@ def analyze_sentiment(fng_data):
     11. 특수문자 **같은 물결표는 사용 금지**입니다. 텍스트만 작성해 주세요.
     [JSON 형식]
     {{
-        "title": "오늘의 시장 분위기를 한 문장으로 요약한 제목(~,-,! 사용금지)",
+        "title": "오늘의 시장 분위기를 한 문장으로 요약한 제목(~,-,! 사용금지, 20자 이내)",
         "analysis": "핵심 요약 내용 (문장별로 줄바꿈 적용)",
         "advice": ["조언1", "조언2", "조언3"]
     }}
@@ -107,6 +107,16 @@ def analyze_sentiment(fng_data):
 
 def update_db(fng_data, ai_analysis):
     print("Updating Supabase fear_greed table...")
+    
+    # 이전 상태 가져오기
+    prev_desc = None
+    try:
+        prev_res = supabase.table("fear_greed").select("description").eq("id", 1).maybeSingle().execute()
+        if prev_res.data:
+            prev_desc = prev_res.data.get("description")
+    except Exception as e:
+        print(f"⚠️ 이전 상태 조회 실패: {e}")
+
     data = {
         "value": fng_data['value'],
         "description": fng_data['description'],
@@ -123,13 +133,33 @@ def update_db(fng_data, ai_analysis):
         result = supabase.table("fear_greed").upsert(data).execute()
         print("Successfully updated database!")
         
+        # 히스토리 테이블에 수치 저장 (US 전용)
+        try:
+            history_data = {
+                "value": fng_data['value'],
+                "description": fng_data['description']
+            }
+            supabase.table("fear_greed_history_us").insert(history_data).execute()
+            print("✅ US Fear & Greed History recorded.")
+        except Exception as e:
+            print(f"⚠️ US History recording failed: {e}")
+        
         # 푸시 알림 전송 (카테고리: us_fear_greed)
         try:
             val = data['value']
             desc = data['description']
+            
+            # 구간 진입 알림 처리
+            if prev_desc and prev_desc != desc:
+                title = f"🚩 미국 증시 '{desc}' 구간 진입"
+                body = f"미국 공탐지수가 {val}점을 기록하며 '{desc}' 단계로 들어섰습니다."
+            else:
+                title = f"📊 공포 탐욕 지수: {val} ({desc})"
+                body = f"현재 글로벌 시장 심리는 '{desc}' 단계입니다. 분석을 확인해보세요."
+
             send_push_notification(
-                title=f"📊 공포 탐욕 지수: {val} ({desc})",
-                body=f"현재 글로벌 시장 심리는 '{desc}' 단계입니다. 분석을 확인해보세요.",
+                title=title,
+                body=body,
                 url="/fear-greed",
                 category="us_fear_greed"
             )
