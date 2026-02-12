@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 # 상위 디렉토리 참조 (로컬 config.py 우선권을 위해 sys.path 맨 앞에 추가)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from news.push_notification import send_push_to_all
+from news.push_notification import send_push_notification
 from config import GEMINI_MODEL_NAME
 
 load_dotenv()
@@ -206,12 +206,13 @@ def main():
             latest_data = history_df.iloc[-1].to_dict()
             update_analysis(analysis_res, latest_data)
             
-            # 푸시 알림 전송
+            # 푸시 알림 전송 (카테고리: us_pcr)
             try:
-                send_push_to_all(
+                send_push_notification(
                     title="⚖️ 시장 심리 지표(PCR) 업데이트",
                     body="풋/콜 옵션 비율 분석이 완료되었습니다. 현재 투자자들의 심리를 확인하세요.",
-                    url="/put-call-ratio"
+                    url="/put-call-ratio",
+                    category="us_pcr"
                 )
             except Exception as e:
                 print(f"Failed to send push: {e}")

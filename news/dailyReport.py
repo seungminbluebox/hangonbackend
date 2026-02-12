@@ -13,7 +13,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from newspaper import Article, Config
 from config import GEMINI_MODEL_NAME
-from news.push_notification import send_push_to_all
+from news.push_notification import send_push_notification
 import base64
 
 load_dotenv()
@@ -233,10 +233,12 @@ def main():
         try:
             now = datetime.now()
             date_str = f"{now.month}월 {now.day}일"
-            send_push_to_all(
+            # 푸시 알림 전송 (카테고리: daily_update)
+            send_push_notification(
                 title="Hang on!",
                 body=f"{date_str} 새로운 경제 리포트가 업데이트되었습니다.",
-                url="/news/daily-report"
+                url="/news/daily-report",
+                category="daily_update"
             )
         except Exception as e:
             print(f"Error sending push: {e}")

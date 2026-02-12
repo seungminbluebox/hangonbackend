@@ -15,7 +15,7 @@ from google import genai
 # 상위 디렉토리 참조 추가 (로컬 config.py 우선권을 위해 sys.path 맨 앞에 추가)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import GEMINI_MODEL_NAME
-from news.push_notification import send_push_to_all
+from news.push_notification import send_push_notification
 
 load_dotenv()
 
@@ -238,11 +238,12 @@ def save_and_notify(news_item):
         supabase.table("breaking_news").insert(data).execute()
         print(f"🚀 New Breaking News Saved: {title}")
 
-        # 2. 실시간 푸시 알림 (전체 알림)
-        send_push_to_all(
+        # 2. 실시간 푸시 알림 (카테고리: breaking_news)
+        send_push_notification(
             title=f"[속보] {title}",
             body=content,
-            url="/live" # 속보 타임라인 전용 페이지로 링크
+            url="/live", # 속보 타임라인 전용 페이지로 링크
+            category="breaking_news"
         )
     except Exception as e:
         print(f"Error in save_and_notify: {e}")

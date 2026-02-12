@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import pandas as pd
 from config import GEMINI_MODEL_NAME
-from news.push_notification import send_push_to_all
+from news.push_notification import send_push_notification
 
 load_dotenv()
 
@@ -197,12 +197,13 @@ def main():
         except Exception as e:
             print(f"Error updating Supabase for {cat_name}: {e}")
             
-    # 모든 카테고리 업데이트 완료 후 푸시 알림
+    # 모든 카테고리 업데이트 완료 후 푸시 알림 (카테고리: us_money_flow)
     try:
-        send_push_to_all(
+        send_push_notification(
             title="💰 실시간 자금 흐름 분석 완료",
             body="국내/미국 증시 및 안전자산 간의 돈의 움직임을 분석했습니다. 지금 확인해보세요.",
-            url="/money-flow"
+            url="/money-flow",
+            category="us_money_flow"
         )
     except Exception as e:
         print(f"Failed to send push: {e}")

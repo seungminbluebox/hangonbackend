@@ -9,7 +9,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from datetime import datetime
 from config import GEMINI_MODEL_NAME
-from news.push_notification import send_push_to_all
+from news.push_notification import send_push_notification
 
 load_dotenv()
 
@@ -123,14 +123,15 @@ def update_db(fng_data, ai_analysis):
         result = supabase.table("fear_greed").upsert(data).execute()
         print("Successfully updated database!")
         
-        # 푸시 알림 전송
+        # 푸시 알림 전송 (카테고리: us_fear_greed)
         try:
             val = data['value']
             desc = data['description']
-            send_push_to_all(
+            send_push_notification(
                 title=f"📊 공포 탐욕 지수: {val} ({desc})",
                 body=f"현재 글로벌 시장 심리는 '{desc}' 단계입니다. 분석을 확인해보세요.",
-                url="/fear-greed"
+                url="/fear-greed",
+                category="us_fear_greed"
             )
         except Exception as e:
             print(f"Failed to send push: {e}")
