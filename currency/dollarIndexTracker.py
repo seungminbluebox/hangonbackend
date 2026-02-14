@@ -118,12 +118,12 @@ def update_dollar_index():
             result = supabase.table("dollar_index").upsert(payload).execute()
             print("Successfully updated Dollar Index!")
             
-            # 푸시 알림 전송 (카테고리: common_currency 재사용 또는 신규)
+            # 푸시 알림 전송 (카테고리: us_dollar_index)
             send_push_notification(
                 title=f"💵 {title}",
                 body="달러 가치의 변화와 글로벌 시장 영향에 대한 리포트가 도착했습니다.",
                 url="/dollar-index",
-                category="common_currency"
+                category="us_dollar_index"
             )
         except Exception as e:
             print(f"Supabase or Push error: {e}")
