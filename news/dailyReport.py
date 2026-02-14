@@ -163,6 +163,7 @@ def generate_daily_report(news_data, market_data):
     - 안전자산 vs 위험자산 심리: [/money-flow/safe](/money-flow/safe)
     - 풋/콜 옵션 비율: [/put-call-ratio](/put-call-ratio)
     - 휴장 일 캘린더: [/market-holidays](/market-holidays)
+    - 달러 인덱스 분석: [/dollar-index](/dollar-index)
 
     [작성 가이드라인]
     1. 제목: 오늘의 시장을 가장 잘 나타내는 강렬하고 전문적인 제목 (예: "{today_str} 글로벌 마켓 데일리 브리핑: 'K-증시의 전성시대'와 달러 약세의 서막")
