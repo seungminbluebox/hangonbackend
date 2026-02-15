@@ -137,11 +137,24 @@ def fetch_market_summary():
 def generate_daily_report(news_data, market_data):
     print("Generating Daily Report with Gemini...")
     
-    today_str = datetime.now().strftime("%Y년 %m월 %d일")
+    now = datetime.now()
+    today_str = now.strftime("%Y년 %m월 %d일")
+    is_weekend = now.weekday() >= 5 # 5: 토요일, 6: 일요일
     
+    # 주말용 리포트 특화 설정
+    weekend_context = """
+    현재는 주말(토요일/일요일)입니다. 
+    리포트의 성격을 '한 주간의 시장 정리 및 다음 주 전망'으로 전환해줘.
+    - 제목에는 '위클리 마켓 프리뷰' 또는 '주말 거시경제 브리핑'과 같은 표현을 사용해.
+    - [시장 지표]는 금요일 종가 기준임을 명시하고, 주간 변동의 의미를 해석해줘.
+    - [최신 뉴스] 중에서도 다음 주 시장에 영향을 미칠 거시경제적 트렌드나 정책 변화를 중점적으로 다뤄줘.
+    - '향후 관전 포인트' 섹션에서 다음 주에 예정된 핵심 경제 이벤트(지표 발표, 연준 인사 발언 등)를 비중 있게 다뤄줘.
+    """ if is_weekend else ""
+
     prompt = f"""
     너는 세계 최고의 경제 분석가이자 시장 전략가야. 
     아래 제공된 [시장 지표]와 [최신 뉴스 정보]를 바탕으로, 투자자들이 하루를 시작하거나 마무리할 때 꼭 읽어야 할 '데일리 거시경제 리포트'를 작성해줘.
+    {weekend_context}
 
     [시장 지표]
     {json.dumps(market_data, ensure_ascii=False, indent=2)}
@@ -234,10 +247,15 @@ def main():
         try:
             now = datetime.now()
             date_str = f"{now.month}월 {now.day}일"
+            is_weekend = now.weekday() >= 5
+            
+            push_title = "Hang on! 주간 브리핑" if is_weekend else "Hang on!"
+            push_body = f"{date_str} 한 주를 정리하는 경제 리포트가 도착했습니다." if is_weekend else f"{date_str} 새로운 경제 리포트가 업데이트되었습니다."
+
             # 푸시 알림 전송 (카테고리: daily_update)
             send_push_notification(
-                title="Hang on!",
-                body=f"{date_str} 새로운 경제 리포트가 업데이트되었습니다.",
+                title=push_title,
+                body=push_body,
                 url="/news/daily-report",
                 category="daily_update"
             )
