@@ -1,0 +1,32 @@
+name: Market Correlation Tracker
+
+on:
+  schedule:
+    # 매일 한국 시간(KST) 오후 4시 10분은 UTC 07:10 (16:10 - 9 = 07:10)
+    - cron: "57 6 * * *"
+  workflow_dispatch: # 수동 실행 가능하도록 설정
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas yfinance exchange_calendars supabase python-dotenv pytz
+
+      - name: Run Correlation Tracker
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python correlations/marketCorrelationTracker.py
