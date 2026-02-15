@@ -126,15 +126,15 @@ def update_currency_desk():
         revalidate_path("/currency-desk")
         
         # 푸시 알림 전송 (카테고리: common_currency)
-        try:
-            send_push_notification(
-                title=f"💵 {title}",
-                body="글로벌 환율 및 외환 시장 리포트가 업데이트되었습니다.",
-                url="/currency-desk",
-                category="common_currency"
-            )
-        except Exception as e:
-            print(f"Failed to send push: {e}")
+        # try:
+        #     send_push_notification(
+        #         title=f"💵 {title}",
+        #         body="글로벌 환율 및 외환 시장 리포트가 업데이트되었습니다.",
+        #         url="/currency-desk",
+        #         category="common_currency"
+        #     )
+        # except Exception as e:
+        #     print(f"Failed to send push: {e}")
             
     except Exception as e:
         print(f"Update failed: {e}")
