@@ -10,6 +10,7 @@ from datetime import datetime
 import pandas as pd
 from config import GEMINI_MODEL_NAME
 from news.push_notification import send_push_notification
+from revalidate import revalidate_path
 
 load_dotenv()
 
@@ -194,6 +195,7 @@ def main():
         try:
             supabase.table("money_flow").upsert(data_to_upsert).execute()
             print(f"Successfully updated {cat_name} Money Flow (ID: {cat_id})")
+            revalidate_path("/money-flow")
         except Exception as e:
             print(f"Error updating Supabase for {cat_name}: {e}")
             

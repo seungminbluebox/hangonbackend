@@ -11,6 +11,7 @@ import pandas as pd
 from config import GEMINI_MODEL_NAME
 import google.generativeai.types as safety_types
 from news.push_notification import send_push_notification
+from revalidate import revalidate_path
 
 load_dotenv()
 
@@ -222,6 +223,7 @@ def update_db(ai_analysis):
     try:
         result = supabase.table("fear_greed").upsert(data).execute()
         print("Successfully updated KOSPI Fear & Greed Index!")
+        revalidate_path("/kospi-fear-greed")
         
         # 히스토리 테이블에 수치 저장 (KR 전용)
         try:

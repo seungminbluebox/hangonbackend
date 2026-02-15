@@ -12,7 +12,7 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 from news.push_notification import send_push_notification
-
+from revalidate import revalidate_path
 
 # 상위 디렉토리 참조
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -216,6 +216,7 @@ def update_analysis(analysis_data, latest_data):
     try:
         supabase.table("credit_balance_analysis").upsert(payload).execute()
         print("✅ 신용융자 분석 결과 업데이트 완료")
+        revalidate_path("/credit-balance")
     except Exception as e:
         print(f"❌ 분석 결과 저장 에러: {e}")
 

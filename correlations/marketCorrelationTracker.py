@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import pytz
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from revalidate import revalidate_path
 
 # 상위 디렉토리 참조를 위해 sys.path 설정
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -103,6 +104,7 @@ def calculate_and_sync_history(days=60):
             print(f"Error on {date_str}: {e}")
     
     print(">>> 동기화 완료.")
+    revalidate_path("/market-correlation")
 
 def main():
     # 데일리 자동화용: 최근 5일치만 동기화 (주말/휴장일 고려)

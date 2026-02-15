@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 # 상위 디렉토리 참조
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config import GEMINI_MODEL_NAME
+from revalidate import revalidate_path
 
 load_dotenv()
 
@@ -356,6 +357,7 @@ def sync_to_supabase(data_list):
             continue
     
     print(f"✅ 저장 완료 (신규: {insert_count}, 업데이트: {update_count})")
+    revalidate_path("/earnings")
 
 if __name__ == "__main__":
     ticker_list, name_mapping = resolve_ticker_list()

@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from news.push_notification import send_push_notification
 from config import GEMINI_MODEL_NAME
+from revalidate import revalidate_path
 
 load_dotenv()
 
@@ -225,6 +226,7 @@ def main():
                     url="/put-call-ratio",
                     category="us_pcr"
                 )
+                revalidate_path("/put-call-ratio")
             except Exception as e:
                 print(f"Failed to send push: {e}")
             

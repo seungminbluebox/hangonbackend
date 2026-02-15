@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import json
 
 from news.push_notification import send_push_notification
+from revalidate import revalidate_path
 import time
 
 # 상위 디렉토리 참조
@@ -231,6 +232,7 @@ def fetch_and_save_holidays(year):
         try:
             res = supabase.table("market_holidays").upsert(all_holidays, on_conflict="date,country").execute()
             print(f"✅ Successfully updated {len(all_holidays)} records in Supabase.")
+            revalidate_path("/market-holidays")
         except Exception as e:
             print(f"❌ Error during Supabase upsert: {e}")
 

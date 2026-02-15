@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 from config import GEMINI_MODEL_NAME
 from news.push_notification import send_push_notification
+from revalidate import revalidate_path
 
 load_dotenv()
 
@@ -120,6 +121,9 @@ def update_currency_desk():
         # Supabase 업데이트
         result = supabase.table("currency_desk").upsert(payload).execute()
         print("Successfully updated Currency Desk!")
+        
+        # Vercel 온디맨드 재검증 호출
+        revalidate_path("/currency-desk")
         
         # 푸시 알림 전송 (카테고리: common_currency)
         try:

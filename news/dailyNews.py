@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from newspaper import Article, Config
 from config import GEMINI_MODEL_NAME
 from push_notification import send_push_notification
+from revalidate import revalidate_path
 
 load_dotenv()
 GOOGLE_API_KEY =  os.getenv("GEMINI_API_KEY")
@@ -206,6 +207,8 @@ def save_to_supabase(data):
     try:
         result = supabase.table("daily_news").insert(data).execute()
         print("Successfully saved!")
+        revalidate_path("/news/daily-report")
+        revalidate_path("/")
         return result
     except Exception as e:
         print(f"Error saving to Supabase: {e}")

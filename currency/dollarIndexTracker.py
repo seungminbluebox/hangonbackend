@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 from config import GEMINI_MODEL_NAME
 from news.push_notification import send_push_notification
+from revalidate import revalidate_path
 
 load_dotenv()
 
@@ -117,6 +118,7 @@ def update_dollar_index():
         try:
             result = supabase.table("dollar_index").upsert(payload).execute()
             print("Successfully updated Dollar Index!")
+            revalidate_path("/dollar-index")
             
             # 푸시 알림 전송 (카테고리: us_dollar_index)
             send_push_notification(

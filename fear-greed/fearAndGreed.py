@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from config import GEMINI_MODEL_NAME
 from news.push_notification import send_push_notification
+from revalidate import revalidate_path
 
 load_dotenv()
 
@@ -132,6 +133,7 @@ def update_db(fng_data, ai_analysis):
         data['id'] = 1
         result = supabase.table("fear_greed").upsert(data).execute()
         print("Successfully updated database!")
+        revalidate_path("/fear-greed")
         
         # 히스토리 테이블에 수치 저장 (US 전용)
         try:

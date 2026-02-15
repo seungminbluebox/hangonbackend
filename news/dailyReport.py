@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from newspaper import Article, Config
 from config import GEMINI_MODEL_NAME
 from news.push_notification import send_push_notification
+from revalidate import revalidate_path
 import base64
 
 load_dotenv()
@@ -221,6 +222,8 @@ def save_to_supabase(report_data):
         # 테이블이 없는 경우를 대비해 에러 핸들링
         result = supabase.table("daily_reports").upsert(report_data, on_conflict="date").execute()
         print("Report successfully saved!")
+        revalidate_path("/news/daily-report")
+        revalidate_path("/")
         return result
     except Exception as e:
         print(f"Error saving to Supabase: {e}")
