@@ -238,7 +238,7 @@ def main():
             send_push_notification(
                 title=push_title,
                 body=push_body,
-                url="/news/daily-report",
+                url="/",
                 category="daily_update"
             )
         except Exception as e:
